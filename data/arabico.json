@@ -1,0 +1,2135 @@
+{
+  "id": "arabico",
+  "name": "Arabico",
+  "tagline": "Specialty coffee · Janakpuri",
+  "chef": "The Arabico baristas",
+  "logo": null,
+  "currency": "INR",
+  "locale": "en-IN",
+  "theme": {
+    "primary": "#D4A373",
+    "secondary": "#6B8F4E"
+  },
+  "footerNote": "Prices are in ₹ and exclusive of taxes. Please tell our team about any allergies.",
+  "branches": [
+    {
+      "id": "janakpuri",
+      "name": "Arabico — Janakpuri",
+      "lat": null,
+      "lng": null,
+      "radiusM": 150
+    }
+  ],
+  "badges": {
+    "bestseller": {
+      "label": "Bestseller",
+      "tone": "primary"
+    },
+    "signature": {
+      "label": "Signature",
+      "tone": "secondary"
+    },
+    "new": {
+      "label": "New",
+      "tone": "neutral"
+    },
+    "spicy": {
+      "label": "Spicy",
+      "tone": "neutral"
+    }
+  },
+  "sections": [
+    {
+      "id": "most-loved",
+      "label": "Most loved at {name}",
+      "type": "tag",
+      "match": "most-loved",
+      "eyebrow": "Guest favourites",
+      "description": "The cups and plates our regulars order again and again.",
+      "order": [
+        "biscoff-latte",
+        "iced-coco-latte",
+        "chicken-pesto-sandwich",
+        "truffle-mushroom-pizza",
+        "og-matcha",
+        "spanish-iced-latte",
+        "peri-peri-fries",
+        "classic-falafel-wrap",
+        "vietnamese-iced-coffee",
+        "alfredo-pasta"
+      ]
+    },
+    {
+      "id": "barista-picks",
+      "label": "Barista's Picks",
+      "type": "tag",
+      "match": "barista",
+      "eyebrow": "From behind the bar",
+      "description": "What our baristas are drinking this week."
+    },
+    {
+      "id": "matcha",
+      "label": "Matcha",
+      "type": "category",
+      "match": "matcha",
+      "eyebrow": "Whisked to order"
+    },
+    {
+      "id": "specialty",
+      "label": "Specialty Coffee",
+      "type": "category",
+      "match": "specialty",
+      "eyebrow": "Signature creations"
+    },
+    {
+      "id": "hot",
+      "label": "Hot Coffee",
+      "type": "category",
+      "match": "hot",
+      "eyebrow": "As hot as you"
+    },
+    {
+      "id": "cold",
+      "label": "Cold Coffee",
+      "type": "category",
+      "match": "cold",
+      "eyebrow": "If you like it cold"
+    },
+    {
+      "id": "teas",
+      "label": "Teas & Coolers",
+      "type": "category",
+      "match": "teas",
+      "eyebrow": "Freshly brewed"
+    },
+    {
+      "id": "sandwiches",
+      "label": "Sandwiches & Toast",
+      "type": "category",
+      "match": "sandwiches",
+      "eyebrow": "Between the slices"
+    },
+    {
+      "id": "eggs",
+      "label": "Eggs & Rolls",
+      "type": "category",
+      "match": "eggs",
+      "eyebrow": "Eggstation"
+    },
+    {
+      "id": "wraps",
+      "label": "Wraps",
+      "type": "category",
+      "match": "wraps",
+      "eyebrow": "It's a wrap"
+    },
+    {
+      "id": "bowls",
+      "label": "Bowls & Salads",
+      "type": "category",
+      "match": "bowls",
+      "eyebrow": "Comforting large plates"
+    },
+    {
+      "id": "pasta",
+      "label": "Pasta",
+      "type": "category",
+      "match": "pasta",
+      "eyebrow": "Fresh off the stove"
+    },
+    {
+      "id": "pizza",
+      "label": "Pizza",
+      "type": "category",
+      "match": "pizza",
+      "eyebrow": "Hot from the oven"
+    },
+    {
+      "id": "fries",
+      "label": "Fries & Dips",
+      "type": "category",
+      "match": "fries",
+      "eyebrow": "Something on the side"
+    }
+  ],
+  "dishes": [
+    {
+      "id": "og-matcha",
+      "name": "OG Matcha",
+      "category": "matcha",
+      "price": 259,
+      "prepTime": 5,
+      "image": "https://assets.mixkit.co/videos/21882/21882-thumb-720-0.jpg",
+      "video": "https://assets.mixkit.co/videos/21882/21882-720.mp4",
+      "description": "Ceremonial-grade matcha whisked smooth and poured over steamed milk.",
+      "tags": [
+        "most-loved"
+      ],
+      "badges": [
+        "new"
+      ],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 170,
+      "story": "Whisked to order, never pre-mixed — the way matcha should taste: grassy, sweet and a little bit earthy.",
+      "pairings": [
+        {
+          "kind": "Bite",
+          "dishId": "pesto-mushroom-toast",
+          "note": "Earthy meets earthy."
+        }
+      ],
+      "allergens": [
+        "dairy"
+      ]
+    },
+    {
+      "id": "berry-dreams",
+      "name": "Berry Dreams",
+      "category": "matcha",
+      "price": 299,
+      "prepTime": 6,
+      "image": "https://images.unsplash.com/photo-1717398804998-ad2d48822518?w=900&q=70&auto=format&fit=crop",
+      "description": "Iced matcha layered over a house berry compote and cold milk.",
+      "tags": [
+        "barista"
+      ],
+      "badges": [
+        "new"
+      ],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 210,
+      "allergens": [
+        "dairy"
+      ]
+    },
+    {
+      "id": "coco-cloud",
+      "name": "Coco Cloud",
+      "category": "matcha",
+      "price": 279,
+      "prepTime": 6,
+      "image": "https://images.unsplash.com/photo-1717603545758-88cc454db69b?w=900&q=70&auto=format&fit=crop",
+      "description": "Iced matcha crowned with whipped coconut foam.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": true,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 190
+    },
+    {
+      "id": "oat-gold",
+      "name": "Oat Gold",
+      "category": "matcha",
+      "price": 299,
+      "prepTime": 6,
+      "image": "https://images.unsplash.com/photo-1749280447307-31a68eb38673?w=900&q=70&auto=format&fit=crop",
+      "description": "Matcha shaken with creamy oat milk and a touch of honey.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 200
+    },
+    {
+      "id": "summer-glow",
+      "name": "Summer Glow",
+      "category": "matcha",
+      "price": 299,
+      "prepTime": 6,
+      "image": "https://images.unsplash.com/photo-1775846933630-3c1531299e5a?w=900&q=70&auto=format&fit=crop",
+      "description": "A bright iced matcha with tropical fruit notes — sunshine in a glass.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 180,
+      "allergens": [
+        "dairy"
+      ]
+    },
+    {
+      "id": "sweet-vanilla",
+      "name": "Sweet Vanilla",
+      "category": "matcha",
+      "price": 279,
+      "prepTime": 5,
+      "image": "https://images.unsplash.com/photo-1766426910014-63a302fa137e?w=900&q=70&auto=format&fit=crop",
+      "description": "Matcha latte sweetened with real vanilla bean.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 200,
+      "allergens": [
+        "dairy"
+      ]
+    },
+    {
+      "id": "iced-coco-latte",
+      "name": "Iced Coco Latte",
+      "category": "specialty",
+      "price": 369,
+      "prepTime": 6,
+      "image": "https://assets.mixkit.co/videos/796/796-thumb-720-0.jpg",
+      "video": "https://assets.mixkit.co/videos/796/796-720.mp4",
+      "description": "Chilled espresso topped with thick, velvety coconut foam.",
+      "tags": [
+        "most-loved"
+      ],
+      "badges": [
+        "bestseller"
+      ],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 190,
+      "chefNote": "Pull the shot, chill it fast, then let the coconut foam sink in slowly. Don't stir — sip through the layers.",
+      "pairings": [
+        {
+          "kind": "Bite",
+          "dishId": "chicken-pesto-sandwich",
+          "note": "Creamy coffee, herby crunch."
+        }
+      ]
+    },
+    {
+      "id": "iced-freddo-cappuccino",
+      "name": "Iced Freddo Cappuccino",
+      "category": "specialty",
+      "price": 379,
+      "prepTime": 6,
+      "image": "https://images.unsplash.com/photo-1562447457-579fc34967fb?w=900&q=70&auto=format&fit=crop",
+      "description": "Chilled espresso served over ice and topped with thick, creamy cold foam.",
+      "tags": [
+        "barista"
+      ],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 150,
+      "allergens": [
+        "dairy"
+      ]
+    },
+    {
+      "id": "pineapple-trifecta",
+      "name": "Pineapple Trifecta",
+      "category": "specialty",
+      "price": 369,
+      "prepTime": 7,
+      "image": "https://images.unsplash.com/photo-1762883469122-c15463bbce28?w=900&q=70&auto=format&fit=crop",
+      "description": "Iced coffee infused with pineapple for a bright, tropical kick.",
+      "tags": [
+        "barista"
+      ],
+      "badges": [
+        "signature"
+      ],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": true,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 140,
+      "story": "Coffee and pineapple sound strange together until the first sip: the fruit lifts the coffee's natural acidity."
+    },
+    {
+      "id": "spanish-iced-latte",
+      "name": "Spanish Iced Latte",
+      "category": "specialty",
+      "price": 329,
+      "prepTime": 5,
+      "image": "https://images.unsplash.com/photo-1592663527359-cf6642f54cff?w=900&q=70&auto=format&fit=crop",
+      "description": "Iced espresso sweetened with creamy condensed milk.",
+      "tags": [
+        "most-loved"
+      ],
+      "badges": [
+        "bestseller"
+      ],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 240,
+      "allergens": [
+        "dairy"
+      ]
+    },
+    {
+      "id": "tangerine-iced-coffee",
+      "name": "Tangerine Iced Coffee",
+      "category": "specialty",
+      "price": 369,
+      "prepTime": 6,
+      "image": "https://images.unsplash.com/photo-1769737184213-af66b3637edb?w=900&q=70&auto=format&fit=crop",
+      "description": "Iced coffee flavoured with fresh tangerine for a bright, citrusy kick.",
+      "tags": [
+        "barista"
+      ],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": true,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 130
+    },
+    {
+      "id": "vanilla-sweet-cream-brew",
+      "name": "Vanilla Sweet Cream Brew",
+      "category": "specialty",
+      "price": 379,
+      "prepTime": 5,
+      "image": "https://images.unsplash.com/photo-1771210849472-84a07b2e793a?w=900&q=70&auto=format&fit=crop",
+      "description": "Slow-steeped cold brew finished with a pour of vanilla sweet cream.",
+      "tags": [
+        "barista"
+      ],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 220,
+      "allergens": [
+        "dairy"
+      ]
+    },
+    {
+      "id": "vietnamese-iced-coffee",
+      "name": "Vietnamese Iced Coffee",
+      "category": "specialty",
+      "price": 339,
+      "prepTime": 6,
+      "image": "https://images.unsplash.com/photo-1559496417-e7f25cb247f3?w=900&q=70&auto=format&fit=crop",
+      "description": "Strong brewed coffee mixed with sweet condensed milk and poured over ice.",
+      "tags": [
+        "most-loved"
+      ],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 230,
+      "allergens": [
+        "dairy"
+      ]
+    },
+    {
+      "id": "americano",
+      "name": "Americano",
+      "category": "hot",
+      "price": 229,
+      "prepTime": 4,
+      "image": "https://assets.mixkit.co/videos/41865/41865-thumb-720-0.jpg",
+      "video": "https://assets.mixkit.co/videos/41865/41865-720.mp4",
+      "description": "A double shot of our house espresso, lengthened with hot water.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": true,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 10
+    },
+    {
+      "id": "arabico-hot-chocolate",
+      "name": "Arabico Hot Chocolate",
+      "category": "hot",
+      "price": 339,
+      "prepTime": 6,
+      "image": "https://images.unsplash.com/photo-1542990253-0d0f5be5f0ed?w=900&q=70&auto=format&fit=crop",
+      "description": "Thick, rich house hot chocolate made with real cocoa.",
+      "tags": [],
+      "badges": [
+        "signature"
+      ],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 320,
+      "allergens": [
+        "dairy"
+      ]
+    },
+    {
+      "id": "biscoff-latte",
+      "name": "Biscoff Latte",
+      "category": "hot",
+      "price": 329,
+      "prepTime": 5,
+      "image": "https://assets.mixkit.co/videos/810/810-thumb-720-0.jpg",
+      "video": "https://assets.mixkit.co/videos/810/810-720.mp4",
+      "description": "Espresso and steamed milk with caramelised Biscoff spread and a cookie crumble.",
+      "tags": [
+        "most-loved"
+      ],
+      "badges": [
+        "bestseller"
+      ],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 280,
+      "story": "The drink our regulars rave about — warm caramelised-biscuit spice, silky microfoam and a crumble on top.",
+      "chefNote": "Sip it first without stirring — the Biscoff sits at the bottom and gets better with every mouthful.",
+      "pairings": [
+        {
+          "kind": "Bite",
+          "dishId": "pesto-mushroom-toast",
+          "note": "Sweet latte, savoury toast."
+        },
+        {
+          "kind": "Bite",
+          "dishId": "cheesy-fries",
+          "note": "Trust us on this one."
+        }
+      ],
+      "allergens": [
+        "dairy",
+        "gluten"
+      ]
+    },
+    {
+      "id": "cappuccino",
+      "name": "Cappuccino",
+      "category": "hot",
+      "price": 289,
+      "prepTime": 4,
+      "image": "https://assets.mixkit.co/videos/41859/41859-thumb-720-0.jpg",
+      "video": "https://assets.mixkit.co/videos/41859/41859-720.mp4",
+      "description": "Equal parts espresso, steamed milk and airy foam.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 120,
+      "allergens": [
+        "dairy"
+      ]
+    },
+    {
+      "id": "honey-cinnamon-latte",
+      "name": "Honey Cinnamon Latte",
+      "category": "hot",
+      "price": 319,
+      "prepTime": 5,
+      "image": "https://assets.mixkit.co/videos/88008/88008-thumb-720-0.jpg",
+      "video": "https://assets.mixkit.co/videos/88008/88008-720.mp4",
+      "description": "Latte sweetened with wild honey and a warm dusting of cinnamon.",
+      "tags": [
+        "barista"
+      ],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 210,
+      "allergens": [
+        "dairy"
+      ]
+    },
+    {
+      "id": "latte",
+      "name": "Latte",
+      "category": "hot",
+      "price": 289,
+      "prepTime": 4,
+      "image": "https://images.unsplash.com/photo-1761783768352-e7f42bfa9988?w=900&q=70&auto=format&fit=crop",
+      "description": "Espresso with silky steamed milk and a thin layer of foam.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 150,
+      "allergens": [
+        "dairy"
+      ]
+    },
+    {
+      "id": "mocha",
+      "name": "Mocha",
+      "category": "hot",
+      "price": 319,
+      "prepTime": 5,
+      "image": "https://assets.mixkit.co/videos/43935/43935-thumb-720-0.jpg",
+      "video": "https://assets.mixkit.co/videos/43935/43935-720.mp4",
+      "description": "Espresso, dark chocolate and steamed milk.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 260,
+      "allergens": [
+        "dairy"
+      ]
+    },
+    {
+      "id": "spanish-latte",
+      "name": "Spanish Latte",
+      "category": "hot",
+      "price": 319,
+      "prepTime": 5,
+      "image": "https://images.unsplash.com/photo-1785037358154-1c32247ee9da?w=900&q=70&auto=format&fit=crop",
+      "description": "Hot latte sweetened with condensed milk.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 230,
+      "allergens": [
+        "dairy"
+      ]
+    },
+    {
+      "id": "coffee-lemonade",
+      "name": "Coffee Lemonade",
+      "category": "cold",
+      "price": 329,
+      "prepTime": 5,
+      "image": "https://images.unsplash.com/photo-1656936637945-571e3f0893f9?w=900&q=70&auto=format&fit=crop",
+      "description": "Espresso over fresh lemonade — tart, sparkling and surprisingly refreshing.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": true,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 110
+    },
+    {
+      "id": "coffee-tonic",
+      "name": "Coffee Tonic",
+      "category": "cold",
+      "price": 329,
+      "prepTime": 4,
+      "image": "https://images.unsplash.com/photo-1544241907-f3f1f5ded15a?w=900&q=70&auto=format&fit=crop",
+      "description": "A shot of espresso floated over chilled tonic water and ice.",
+      "tags": [
+        "barista"
+      ],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": true,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 90
+    },
+    {
+      "id": "cranberry-coffee",
+      "name": "Cranberry Coffee",
+      "category": "cold",
+      "price": 329,
+      "prepTime": 5,
+      "image": "https://images.unsplash.com/photo-1499638673689-79a0b5115d87?w=900&q=70&auto=format&fit=crop",
+      "description": "Iced coffee with tangy cranberry.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": true,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 120
+    },
+    {
+      "id": "iced-americano",
+      "name": "Iced Americano",
+      "category": "cold",
+      "price": 259,
+      "prepTime": 3,
+      "image": "https://images.unsplash.com/photo-1581996323441-538096e854b9?w=900&q=70&auto=format&fit=crop",
+      "description": "Double espresso over ice and cold water.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": true,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 10
+    },
+    {
+      "id": "iced-cappuccino",
+      "name": "Iced Cappuccino",
+      "category": "cold",
+      "price": 299,
+      "prepTime": 4,
+      "image": "https://images.unsplash.com/photo-1461023058943-07fcbe16d735?w=900&q=70&auto=format&fit=crop",
+      "description": "Espresso, cold milk and foam over ice.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 130,
+      "allergens": [
+        "dairy"
+      ]
+    },
+    {
+      "id": "iced-caramel-macchiato",
+      "name": "Iced Caramel Macchiato",
+      "category": "cold",
+      "price": 339,
+      "prepTime": 5,
+      "image": "https://images.unsplash.com/photo-1517701550927-30cf4ba1dba5?w=900&q=70&auto=format&fit=crop",
+      "description": "Vanilla milk over ice, marked with espresso and a caramel drizzle.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 250,
+      "allergens": [
+        "dairy"
+      ]
+    },
+    {
+      "id": "iced-latte",
+      "name": "Iced Latte",
+      "category": "cold",
+      "price": 299,
+      "prepTime": 4,
+      "image": "https://images.unsplash.com/photo-1764298490445-6add12301888?w=900&q=70&auto=format&fit=crop",
+      "description": "Espresso and cold milk over ice.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 140,
+      "allergens": [
+        "dairy"
+      ]
+    },
+    {
+      "id": "iced-mocha",
+      "name": "Iced Mocha",
+      "category": "cold",
+      "price": 339,
+      "prepTime": 5,
+      "image": "https://images.unsplash.com/photo-1578314675249-a6910f80cc4e?w=900&q=70&auto=format&fit=crop",
+      "description": "Espresso, chocolate and cold milk over ice.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 260,
+      "allergens": [
+        "dairy"
+      ]
+    },
+    {
+      "id": "frappe",
+      "name": "Frappe",
+      "category": "cold",
+      "price": 259,
+      "prepTime": 5,
+      "image": "https://images.unsplash.com/photo-1718267050202-9b1b6bfb8545?w=900&q=70&auto=format&fit=crop",
+      "description": "Coffee blended with ice cream until thick and frosty.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 380,
+      "allergens": [
+        "dairy"
+      ]
+    },
+    {
+      "id": "honey-ginger-lemon-tea",
+      "name": "Honey Ginger Lemon Tea",
+      "category": "teas",
+      "price": 239,
+      "prepTime": 5,
+      "image": "https://assets.mixkit.co/videos/22268/22268-thumb-720-0.jpg",
+      "video": "https://assets.mixkit.co/videos/22268/22268-720.mp4",
+      "description": "Freshly brewed with ginger, lemon and honey — a hug in a cup.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 60
+    },
+    {
+      "id": "iced-hibiscus-mint-tea",
+      "name": "Iced Hibiscus Mint Tea",
+      "category": "teas",
+      "price": 229,
+      "prepTime": 4,
+      "image": "https://images.unsplash.com/photo-1499961024600-ad094db305cc?w=900&q=70&auto=format&fit=crop",
+      "description": "Ruby-red hibiscus brewed cold with fresh mint.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": true,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 50
+    },
+    {
+      "id": "lemon-green-tea",
+      "name": "Lemon Green Tea",
+      "category": "teas",
+      "price": 239,
+      "prepTime": 4,
+      "image": "https://assets.mixkit.co/videos/9267/9267-thumb-720-0.jpg",
+      "video": "https://assets.mixkit.co/videos/9267/9267-720.mp4",
+      "description": "Light green tea brewed with a squeeze of lemon.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": true,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 5
+    },
+    {
+      "id": "peach-iced-tea",
+      "name": "Peach Iced Tea",
+      "category": "teas",
+      "price": 229,
+      "prepTime": 4,
+      "image": "https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=900&q=70&auto=format&fit=crop",
+      "description": "House-brewed black tea with ripe peach, over ice.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": true,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 90
+    },
+    {
+      "id": "zero-sugar-iced-tea",
+      "name": "Zero Sugar Iced Tea",
+      "category": "teas",
+      "price": 229,
+      "prepTime": 4,
+      "image": "https://images.unsplash.com/photo-1758705206938-a196ac3ae3bb?w=900&q=70&auto=format&fit=crop",
+      "description": "All the refreshment, none of the sugar.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": true,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 5
+    },
+    {
+      "id": "blueberry-mojito",
+      "name": "Blueberry Mojito",
+      "category": "teas",
+      "price": 259,
+      "prepTime": 5,
+      "image": "https://images.unsplash.com/photo-1782849205997-335c93fdc6c8?w=900&q=70&auto=format&fit=crop",
+      "description": "Muddled blueberries, lime and mint topped with soda (non-alcoholic).",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": true,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 120
+    },
+    {
+      "id": "passion-mojito",
+      "name": "Passion Mojito",
+      "category": "teas",
+      "price": 259,
+      "prepTime": 5,
+      "image": "https://images.unsplash.com/photo-1775717427643-2b0fc39a81f8?w=900&q=70&auto=format&fit=crop",
+      "description": "Passion fruit, lime and mint with soda (non-alcoholic).",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": true,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 120
+    },
+    {
+      "id": "og-caesar",
+      "name": "OG Caesar",
+      "category": "bowls",
+      "price": 329,
+      "prepTime": 10,
+      "image": "https://images.unsplash.com/photo-1550304943-4f24f54ddde9?w=900&q=70&auto=format&fit=crop",
+      "description": "Crisp romaine, garlic croutons, parmesan and a classic Caesar dressing.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 320,
+      "allergens": [
+        "dairy",
+        "gluten"
+      ]
+    },
+    {
+      "id": "veg-house-special",
+      "name": "Veg House Special with Peanut Dressing",
+      "category": "bowls",
+      "price": 349,
+      "prepTime": 10,
+      "image": "https://images.unsplash.com/photo-1505576633757-0ac1084af824?w=900&q=70&auto=format&fit=crop",
+      "description": "Crunchy greens and vegetables tossed in a sweet-savoury peanut dressing.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 360,
+      "allergens": [
+        "peanuts"
+      ]
+    },
+    {
+      "id": "veg-mexican-salad",
+      "name": "Veg Mexican Salad",
+      "category": "bowls",
+      "price": 349,
+      "prepTime": 10,
+      "image": "https://assets.mixkit.co/videos/21529/21529-thumb-720-0.jpg",
+      "video": "https://assets.mixkit.co/videos/21529/21529-720.mp4",
+      "description": "Beans, corn, peppers and greens with a zesty lime dressing.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 1,
+      "kcal": 340
+    },
+    {
+      "id": "basil-mushroom-sandwich",
+      "name": "Basil Mushroom Sandwich",
+      "category": "sandwiches",
+      "price": 349,
+      "prepTime": 12,
+      "image": "https://images.unsplash.com/photo-1709689156424-16fe0e05b47b?w=900&q=70&auto=format&fit=crop",
+      "description": "Sautéed mushrooms, fresh basil and melted cheese, grilled golden.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 480,
+      "allergens": [
+        "dairy",
+        "gluten"
+      ]
+    },
+    {
+      "id": "chicken-pesto-sandwich",
+      "name": "Chicken Pesto Sandwich",
+      "category": "sandwiches",
+      "price": 379,
+      "prepTime": 12,
+      "image": "https://assets.mixkit.co/videos/3069/3069-thumb-720-0.jpg",
+      "video": "https://assets.mixkit.co/videos/3069/3069-720.mp4",
+      "description": "Grilled chicken, basil pesto, lettuce and tomato on toasted bread.",
+      "tags": [
+        "most-loved"
+      ],
+      "badges": [
+        "bestseller"
+      ],
+      "diet": {
+        "veg": false,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 540,
+      "pairings": [
+        {
+          "kind": "Drink",
+          "dishId": "iced-coco-latte",
+          "note": "Our most-ordered combo."
+        },
+        {
+          "kind": "Side",
+          "dishId": "salted-fries",
+          "note": "Make it a meal."
+        }
+      ],
+      "allergens": [
+        "dairy",
+        "gluten",
+        "nuts"
+      ]
+    },
+    {
+      "id": "chicken-hummus-sandwich",
+      "name": "Classic Chicken Hummus Sandwich",
+      "category": "sandwiches",
+      "price": 379,
+      "prepTime": 12,
+      "image": "https://images.unsplash.com/photo-1712746784291-e29d5d2694d4?w=900&q=70&auto=format&fit=crop",
+      "description": "Pulled chicken with house hummus, cucumber and greens.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": false,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 520,
+      "allergens": [
+        "gluten",
+        "sesame"
+      ]
+    },
+    {
+      "id": "delhi-chicken-sandwich",
+      "name": "Delhi Style Chicken Sandwich",
+      "category": "sandwiches",
+      "price": 339,
+      "prepTime": 12,
+      "image": "https://images.unsplash.com/photo-1676300184084-de35d56a9a70?w=900&q=70&auto=format&fit=crop",
+      "description": "Spiced tandoori-style chicken with onions and mint mayo.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": false,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 2,
+      "kcal": 510,
+      "allergens": [
+        "gluten",
+        "egg"
+      ]
+    },
+    {
+      "id": "garden-hummus-sandwich",
+      "name": "Garden Hummus Sandwich",
+      "category": "sandwiches",
+      "price": 349,
+      "prepTime": 10,
+      "image": "https://images.unsplash.com/photo-1534352211968-8d25dbe0e951?w=900&q=70&auto=format&fit=crop",
+      "description": "House hummus, roasted vegetables and fresh greens.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": true,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 420,
+      "allergens": [
+        "gluten",
+        "sesame"
+      ]
+    },
+    {
+      "id": "homestyle-paneer-sandwich",
+      "name": "Homestyle Paneer Sandwich",
+      "category": "sandwiches",
+      "price": 329,
+      "prepTime": 12,
+      "image": "https://images.unsplash.com/photo-1496113269490-84ffe1a410cb?w=900&q=70&auto=format&fit=crop",
+      "description": "Masala paneer, onions and capsicum, toasted crisp.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 1,
+      "kcal": 490,
+      "allergens": [
+        "dairy",
+        "gluten"
+      ]
+    },
+    {
+      "id": "saucy-chicken",
+      "name": "Saucy Chicken",
+      "category": "sandwiches",
+      "price": 339,
+      "prepTime": 12,
+      "image": "https://images.unsplash.com/photo-1709689155464-90d6ca1e9f62?w=900&q=70&auto=format&fit=crop",
+      "description": "Juicy chicken in a tangy house sauce, grilled in thick bread.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": false,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 1,
+      "kcal": 530,
+      "allergens": [
+        "gluten"
+      ]
+    },
+    {
+      "id": "veg-club-sandwich",
+      "name": "Veg Club Sandwich",
+      "category": "sandwiches",
+      "price": 319,
+      "prepTime": 10,
+      "image": "https://assets.mixkit.co/videos/26094/26094-thumb-720-0.jpg",
+      "video": "https://assets.mixkit.co/videos/26094/26094-720.mp4",
+      "description": "Triple-decker with veggies, cheese, lettuce and tomato.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 460,
+      "allergens": [
+        "dairy",
+        "gluten"
+      ]
+    },
+    {
+      "id": "pesto-mushroom-toast",
+      "name": "Pesto Mushroom Toast",
+      "category": "sandwiches",
+      "price": 329,
+      "prepTime": 10,
+      "image": "https://images.unsplash.com/photo-1760731755984-442f86f9b744?w=900&q=70&auto=format&fit=crop",
+      "description": "Open sourdough toast with garlicky mushrooms and basil pesto.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 390,
+      "allergens": [
+        "gluten",
+        "nuts"
+      ]
+    },
+    {
+      "id": "classic-chicken-roll",
+      "name": "Classic Chicken Roll",
+      "category": "eggs",
+      "price": 329,
+      "prepTime": 12,
+      "image": "https://images.unsplash.com/photo-1719282431565-3b30bb7d2658?w=900&q=70&auto=format&fit=crop",
+      "description": "Spiced chicken rolled in a flaky egg-coated paratha.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": false,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 1,
+      "kcal": 560,
+      "allergens": [
+        "gluten",
+        "egg"
+      ]
+    },
+    {
+      "id": "scrambled-eggs-toast",
+      "name": "Scrambled Eggs Toast",
+      "category": "eggs",
+      "price": 339,
+      "prepTime": 10,
+      "image": "https://assets.mixkit.co/videos/42909/42909-thumb-720-0.jpg",
+      "video": "https://assets.mixkit.co/videos/42909/42909-720.mp4",
+      "description": "Soft, buttery scrambled eggs on toasted bread.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": false,
+        "egg": true,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 420,
+      "allergens": [
+        "egg",
+        "dairy",
+        "gluten"
+      ]
+    },
+    {
+      "id": "arabico-omelette-plate",
+      "name": "The Arabico Omelette Plate",
+      "category": "eggs",
+      "price": 369,
+      "prepTime": 12,
+      "image": "https://assets.mixkit.co/videos/42910/42910-thumb-720-0.jpg",
+      "video": "https://assets.mixkit.co/videos/42910/42910-720.mp4",
+      "description": "A fluffy three-egg omelette with toast and a side salad.",
+      "tags": [],
+      "badges": [
+        "signature"
+      ],
+      "diet": {
+        "veg": false,
+        "egg": true,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 480,
+      "allergens": [
+        "egg",
+        "dairy",
+        "gluten"
+      ]
+    },
+    {
+      "id": "chicken-chipotle-wrap",
+      "name": "Chicken Chipotle Wrap",
+      "category": "wraps",
+      "price": 389,
+      "prepTime": 12,
+      "image": "https://images.unsplash.com/photo-1646530208887-8a791bff4701?w=900&q=70&auto=format&fit=crop",
+      "description": "Smoky chipotle chicken, lettuce and cheese in a soft tortilla.",
+      "tags": [],
+      "badges": [
+        "spicy"
+      ],
+      "diet": {
+        "veg": false,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 2,
+      "kcal": 560,
+      "allergens": [
+        "gluten",
+        "dairy"
+      ]
+    },
+    {
+      "id": "chicken-hummus-wrap",
+      "name": "Classic Chicken & Hummus Wrap",
+      "category": "wraps",
+      "price": 389,
+      "prepTime": 12,
+      "image": "https://images.unsplash.com/photo-1632660346941-023cc64e1252?w=900&q=70&auto=format&fit=crop",
+      "description": "Grilled chicken, hummus and crunchy salad, rolled tight.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": false,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 540,
+      "allergens": [
+        "gluten",
+        "sesame"
+      ]
+    },
+    {
+      "id": "classic-falafel-wrap",
+      "name": "Classic Falafel Wrap",
+      "category": "wraps",
+      "price": 379,
+      "prepTime": 12,
+      "image": "https://images.unsplash.com/photo-1788538397125-8fef2bf2af0b?w=900&q=70&auto=format&fit=crop",
+      "description": "Crispy falafel, hummus, pickles and greens in a toasted wrap.",
+      "tags": [
+        "most-loved"
+      ],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": true,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 520,
+      "allergens": [
+        "gluten",
+        "sesame"
+      ]
+    },
+    {
+      "id": "delhi-chicken-wrap",
+      "name": "Delhi Style Chicken Wrap",
+      "category": "wraps",
+      "price": 389,
+      "prepTime": 12,
+      "image": "https://images.unsplash.com/photo-1734772591537-15ac1b3b3c04?w=900&q=70&auto=format&fit=crop",
+      "description": "Tandoori-spiced chicken with onions and mint chutney.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": false,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 2,
+      "kcal": 550,
+      "allergens": [
+        "gluten"
+      ]
+    },
+    {
+      "id": "exotic-mushroom-wrap",
+      "name": "Exotic Mushroom Wrap",
+      "category": "wraps",
+      "price": 379,
+      "prepTime": 12,
+      "image": "https://images.unsplash.com/photo-1760888548893-bc2f7e09e972?w=900&q=70&auto=format&fit=crop",
+      "description": "A medley of sautéed mushrooms with herbs and cheese.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 480,
+      "allergens": [
+        "gluten",
+        "dairy"
+      ]
+    },
+    {
+      "id": "exotic-veggies-wrap",
+      "name": "Exotic Veggies Wrap",
+      "category": "wraps",
+      "price": 379,
+      "prepTime": 12,
+      "image": "https://images.unsplash.com/photo-1681072530653-db8fe2538631?w=900&q=70&auto=format&fit=crop",
+      "description": "Grilled zucchini, peppers, broccoli and a creamy dressing.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 460,
+      "allergens": [
+        "gluten",
+        "dairy"
+      ]
+    },
+    {
+      "id": "grilled-chicken",
+      "name": "Grilled Chicken",
+      "category": "bowls",
+      "price": 399,
+      "prepTime": 18,
+      "image": "https://images.unsplash.com/photo-1777891258069-454e66f8bedc?w=900&q=70&auto=format&fit=crop",
+      "description": "Herb-marinated grilled chicken with sautéed vegetables.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": false,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 520
+    },
+    {
+      "id": "protein-bowl",
+      "name": "Protein Bowl",
+      "category": "bowls",
+      "price": 379,
+      "prepTime": 12,
+      "image": "https://images.unsplash.com/photo-1542354255-839e272e3408?w=900&q=70&auto=format&fit=crop",
+      "description": "Chickpeas, paneer, grains and fresh vegetables — fuel in a bowl.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 540,
+      "allergens": [
+        "dairy"
+      ]
+    },
+    {
+      "id": "veg-burrito-bowl",
+      "name": "Veg Classic Burrito Bowl",
+      "category": "bowls",
+      "price": 379,
+      "prepTime": 14,
+      "image": "https://images.unsplash.com/photo-1520066391310-428f06ebd602?w=900&q=70&auto=format&fit=crop",
+      "description": "Mexican rice, beans, corn, salsa and sour cream.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 1,
+      "kcal": 580,
+      "allergens": [
+        "dairy"
+      ]
+    },
+    {
+      "id": "veg-thai-rice-bowl",
+      "name": "Veg Thai Rice Bowl",
+      "category": "bowls",
+      "price": 379,
+      "prepTime": 15,
+      "image": "https://images.unsplash.com/photo-1788016487973-edef419585f0?w=900&q=70&auto=format&fit=crop",
+      "description": "Fragrant Thai curry with vegetables over steamed rice.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 2,
+      "kcal": 560
+    },
+    {
+      "id": "aglio-e-olio",
+      "name": "Aglio e Olio Pasta",
+      "category": "pasta",
+      "price": 339,
+      "prepTime": 14,
+      "image": "https://assets.mixkit.co/videos/24463/24463-thumb-720-0.jpg",
+      "video": "https://assets.mixkit.co/videos/24463/24463-720.mp4",
+      "description": "Spaghetti tossed with garlic, olive oil and chilli flakes.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 1,
+      "kcal": 480,
+      "allergens": [
+        "gluten"
+      ]
+    },
+    {
+      "id": "alfredo-pasta",
+      "name": "Alfredo Pasta",
+      "category": "pasta",
+      "price": 339,
+      "prepTime": 14,
+      "image": "https://assets.mixkit.co/videos/2436/2436-thumb-720-0.jpg",
+      "video": "https://assets.mixkit.co/videos/2436/2436-720.mp4",
+      "description": "Creamy parmesan white sauce with herbs.",
+      "tags": [
+        "most-loved"
+      ],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 620,
+      "pairings": [
+        {
+          "kind": "Drink",
+          "dishId": "peach-iced-tea",
+          "note": "Cuts through the cream."
+        }
+      ],
+      "allergens": [
+        "gluten",
+        "dairy"
+      ]
+    },
+    {
+      "id": "arrabbiata-pasta",
+      "name": "Arrabbiata Pasta",
+      "category": "pasta",
+      "price": 339,
+      "prepTime": 14,
+      "image": "https://images.unsplash.com/photo-1598866594230-a7c12756260f?w=900&q=70&auto=format&fit=crop",
+      "description": "Penne in a spicy tomato and garlic sauce.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 2,
+      "kcal": 500,
+      "allergens": [
+        "gluten"
+      ]
+    },
+    {
+      "id": "coco-curry-pasta",
+      "name": "Coco Curry Pasta",
+      "category": "pasta",
+      "price": 359,
+      "prepTime": 15,
+      "image": "https://images.unsplash.com/photo-1567608285969-48e4bbe0d399?w=900&q=70&auto=format&fit=crop",
+      "description": "Pasta in a mild coconut curry sauce. Add chicken for ₹49.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 1,
+      "kcal": 590,
+      "allergens": [
+        "gluten"
+      ]
+    },
+    {
+      "id": "creamy-pesto-pasta",
+      "name": "Creamy Pesto Pasta",
+      "category": "pasta",
+      "price": 349,
+      "prepTime": 14,
+      "image": "https://images.unsplash.com/photo-1473093295043-cdd812d0e601?w=900&q=70&auto=format&fit=crop",
+      "description": "Basil pesto folded into a light cream sauce.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 600,
+      "allergens": [
+        "gluten",
+        "dairy",
+        "nuts"
+      ]
+    },
+    {
+      "id": "k-night-pasta",
+      "name": "K-Night Pasta",
+      "category": "pasta",
+      "price": 359,
+      "prepTime": 15,
+      "image": "https://images.unsplash.com/photo-1612966893103-790e549a2ab1?w=900&q=70&auto=format&fit=crop",
+      "description": "Korean-inspired gochujang cream pasta with a gentle kick.",
+      "tags": [],
+      "badges": [
+        "new"
+      ],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 2,
+      "kcal": 610,
+      "allergens": [
+        "gluten",
+        "dairy"
+      ]
+    },
+    {
+      "id": "rose-pasta",
+      "name": "Rose Pasta",
+      "category": "pasta",
+      "price": 349,
+      "prepTime": 14,
+      "image": "https://images.unsplash.com/photo-1621996346565-e3dbc646d9a9?w=900&q=70&auto=format&fit=crop",
+      "description": "Half tomato, half cream — the best of both sauces.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 580,
+      "allergens": [
+        "gluten",
+        "dairy"
+      ]
+    },
+    {
+      "id": "delhi-chicken-pizza",
+      "name": "Delhi Style Chicken Pizza",
+      "category": "pizza",
+      "price": 389,
+      "prepTime": 16,
+      "image": "https://assets.mixkit.co/videos/1666/1666-thumb-720-0.jpg",
+      "video": "https://assets.mixkit.co/videos/1666/1666-720.mp4",
+      "description": "Tandoori chicken, onions and capsicum on a cheesy base.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": false,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 1,
+      "kcal": 880,
+      "allergens": [
+        "gluten",
+        "dairy"
+      ]
+    },
+    {
+      "id": "farmhouse-pizza",
+      "name": "Farmhouse Pizza",
+      "category": "pizza",
+      "price": 359,
+      "prepTime": 15,
+      "image": "https://images.unsplash.com/photo-1574071318508-1cdbab80d002?w=900&q=70&auto=format&fit=crop",
+      "description": "Onion, capsicum, tomato, mushroom and corn.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 780,
+      "allergens": [
+        "gluten",
+        "dairy"
+      ]
+    },
+    {
+      "id": "margherita-pizza",
+      "name": "Margherita Pizza",
+      "category": "pizza",
+      "price": 299,
+      "prepTime": 14,
+      "image": "https://images.unsplash.com/photo-1513104890138-7c749659a591?w=900&q=70&auto=format&fit=crop",
+      "description": "Tomato sauce, mozzarella and basil — simple and perfect.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 700,
+      "allergens": [
+        "gluten",
+        "dairy"
+      ]
+    },
+    {
+      "id": "pesto-margherita-pizza",
+      "name": "Pesto Margherita Pizza",
+      "category": "pizza",
+      "price": 339,
+      "prepTime": 14,
+      "image": "https://images.unsplash.com/photo-1598023696416-0193a0bcd302?w=900&q=70&auto=format&fit=crop",
+      "description": "Margherita with a swirl of basil pesto.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 740,
+      "allergens": [
+        "gluten",
+        "dairy",
+        "nuts"
+      ]
+    },
+    {
+      "id": "pesto-olive-mushroom-pizza",
+      "name": "Pesto Olive & Mushroom Pizza",
+      "category": "pizza",
+      "price": 359,
+      "prepTime": 15,
+      "image": "https://images.unsplash.com/photo-1564936281291-294551497d81?w=900&q=70&auto=format&fit=crop",
+      "description": "Pesto base, black olives, mushrooms and mozzarella.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 790,
+      "allergens": [
+        "gluten",
+        "dairy",
+        "nuts"
+      ]
+    },
+    {
+      "id": "truffle-mushroom-pizza",
+      "name": "Truffle Mushroom Pizza",
+      "category": "pizza",
+      "price": 389,
+      "prepTime": 16,
+      "image": "https://images.unsplash.com/photo-1759283391598-83b0ceb0faef?w=900&q=70&auto=format&fit=crop",
+      "description": "Wild mushrooms, mozzarella and a drizzle of truffle oil.",
+      "tags": [
+        "most-loved"
+      ],
+      "badges": [
+        "bestseller"
+      ],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 820,
+      "pairings": [
+        {
+          "kind": "Drink",
+          "dishId": "coffee-tonic",
+          "note": "Bitter, bubbly, perfect with truffle."
+        }
+      ],
+      "allergens": [
+        "gluten",
+        "dairy"
+      ]
+    },
+    {
+      "id": "cheesy-fries",
+      "name": "Cheesy Fries",
+      "category": "fries",
+      "price": 359,
+      "prepTime": 10,
+      "image": "https://images.unsplash.com/photo-1639744210631-209fce3e256c?w=900&q=70&auto=format&fit=crop",
+      "description": "Golden fries smothered in hot cheese sauce.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 560,
+      "allergens": [
+        "dairy"
+      ]
+    },
+    {
+      "id": "exotic-mushroom-fries",
+      "name": "Exotic Mushroom Fries",
+      "category": "fries",
+      "price": 389,
+      "prepTime": 12,
+      "image": "https://images.unsplash.com/photo-1684815495679-f6e6bc0634ec?w=900&q=70&auto=format&fit=crop",
+      "description": "Fries loaded with garlicky sautéed mushrooms and herbs.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 580,
+      "allergens": [
+        "dairy"
+      ]
+    },
+    {
+      "id": "peri-peri-fries",
+      "name": "Peri-Peri Fries",
+      "category": "fries",
+      "price": 359,
+      "prepTime": 10,
+      "image": "https://assets.mixkit.co/videos/3539/3539-thumb-720-0.jpg",
+      "video": "https://assets.mixkit.co/videos/3539/3539-720.mp4",
+      "description": "Crispy fries tossed in fiery peri-peri seasoning.",
+      "tags": [
+        "most-loved"
+      ],
+      "badges": [
+        "spicy"
+      ],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": true,
+        "gf": false
+      },
+      "spice": 2,
+      "kcal": 480
+    },
+    {
+      "id": "salted-fries",
+      "name": "Salted Fries",
+      "category": "fries",
+      "price": 339,
+      "prepTime": 8,
+      "image": "https://assets.mixkit.co/videos/3549/3549-thumb-720-0.jpg",
+      "video": "https://assets.mixkit.co/videos/3549/3549-720.mp4",
+      "description": "Classic, crisp and lightly salted.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": true,
+        "gf": false
+      },
+      "spice": 0,
+      "kcal": 420
+    },
+    {
+      "id": "veg-loaded-fries",
+      "name": "Veg Loaded Fries",
+      "category": "fries",
+      "price": 359,
+      "prepTime": 12,
+      "image": "https://images.unsplash.com/photo-1666304752980-678d5c35c911?w=900&q=70&auto=format&fit=crop",
+      "description": "Fries piled with cheese, jalapeños, salsa and veggies.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 1,
+      "kcal": 620,
+      "allergens": [
+        "dairy"
+      ]
+    },
+    {
+      "id": "classic-hummus",
+      "name": "Classic Hummus",
+      "category": "fries",
+      "price": 99,
+      "prepTime": 2,
+      "image": "https://images.unsplash.com/photo-1637949385162-e416fb15b2ce?w=900&q=70&auto=format&fit=crop",
+      "description": "In-house chickpea and tahini dip.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": true,
+        "gf": false
+      },
+      "spice": 0,
+      "allergens": [
+        "sesame"
+      ]
+    },
+    {
+      "id": "avocado-dip",
+      "name": "Creamy Avocado Dip",
+      "category": "fries",
+      "price": 129,
+      "prepTime": 2,
+      "image": "https://images.unsplash.com/photo-1680992071073-cb1696ba8d3e?w=900&q=70&auto=format&fit=crop",
+      "description": "Smashed avocado with lime and herbs.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": true,
+        "gf": false
+      },
+      "spice": 0
+    },
+    {
+      "id": "tomato-salsa",
+      "name": "Fresh Tomato Salsa",
+      "category": "fries",
+      "price": 99,
+      "prepTime": 2,
+      "image": "https://images.unsplash.com/photo-1533606117812-0783e8e690f1?w=900&q=70&auto=format&fit=crop",
+      "description": "Chunky tomato, onion and coriander salsa.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": true,
+        "gf": false
+      },
+      "spice": 1
+    },
+    {
+      "id": "mint-dip",
+      "name": "Mint Dip",
+      "category": "fries",
+      "price": 39,
+      "prepTime": 1,
+      "image": "https://images.unsplash.com/photo-1620019989549-bbb873b6612d?w=900&q=70&auto=format&fit=crop",
+      "description": "Cool mint and yoghurt.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 0,
+      "allergens": [
+        "dairy"
+      ]
+    },
+    {
+      "id": "peri-peri-dip",
+      "name": "Peri-Peri Dip",
+      "category": "fries",
+      "price": 39,
+      "prepTime": 1,
+      "image": "https://images.unsplash.com/photo-1783696072732-2ff5cec23b08?w=900&q=70&auto=format&fit=crop",
+      "description": "Creamy and fiery.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 2
+    },
+    {
+      "id": "tandoori-dip",
+      "name": "Tandoori Dip",
+      "category": "fries",
+      "price": 39,
+      "prepTime": 1,
+      "image": "https://images.unsplash.com/photo-1697126248475-a537cc5cce28?w=900&q=70&auto=format&fit=crop",
+      "description": "Smoky tandoori mayo.",
+      "tags": [],
+      "badges": [],
+      "diet": {
+        "veg": true,
+        "egg": false,
+        "vegan": false,
+        "gf": false
+      },
+      "spice": 1
+    }
+  ]
+}
