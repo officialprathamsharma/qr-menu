@@ -36,6 +36,7 @@ const state = {
   query: '',
   chips: new Set(), // popular | veg | drinks | food
   sheetFilters: {}, // from the filter sheet
+  openCat: null, // the one category that is expanded (accordion)
   autoplay: pref.get('autoplay') == null ? !(prefersReduced || slowNetwork) : pref.get('autoplay') === '1',
   active: null,
   manual: null,
@@ -50,6 +51,7 @@ const svg = (p) =>
 const icons = {
   clock: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
   close: svg('<path d="M6 6l12 12M18 6 6 18"/>'),
+  chevron: svg('<path d="m6 9 6 6 6-6"/>'),
   arrow: svg('<path d="M5 12h14M13 6l6 6-6 6"/>'),
   dish: svg('<path d="M3 17h18M5 17a7 7 0 0 1 14 0M12 7V5M10 5h4"/>'),
   flame: svg('<path d="M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.5 1.5-3.8 2.5-5 .3 1.6 1 2.6 2 3 0-3-1-5.5.5-8z" fill="currentColor" stroke="none"/>'),
@@ -329,26 +331,66 @@ function renderBrowse(feed) {
 const dishesIn = (c) => data.dishes.filter((d) => d.category === c.match);
 const countIn = (c) => dishesIn(c).length;
 
-// Every category is open. Its header sticks under the search bar while you scroll through it and is
-// pushed away by the next one, so you always know which category you're in and where it ends.
+// Accordion: categories are collapsed headings and only one is open at a time. The open one's heading
+// sticks under the search bar while you scroll through its items.
 function categoryBlock(c) {
   const list = dishesIn(c);
+  const open = state.openCat === c.id;
   return `
-    <section class="cat" id="cat-${esc(c.id)}" aria-labelledby="ct-${esc(c.id)}">
-      <header class="cat-head">
-        <h3 class="cat-title" id="ct-${esc(c.id)}">${esc(label(c))}</h3>
-        <span class="cat-meta">${list.length} ${list.length === 1 ? 'item' : 'items'}</span>
-      </header>
-      ${c.eyebrow ? `<p class="cat-sub">${esc(c.eyebrow)}</p>` : ''}
-      <div class="cat-body">${list.map(rowCard).join('')}</div>
+    <section class="cat${open ? ' open' : ''}" id="cat-${esc(c.id)}">
+      <h3 class="cat-h">
+        <button type="button" class="cat-head" data-cat="${esc(c.id)}" aria-expanded="${open}" aria-controls="body-${esc(c.id)}">
+          <span class="cat-name">
+            <span class="cat-title">${esc(label(c))}</span>
+            <span class="cat-meta">${list.length} ${list.length === 1 ? 'item' : 'items'}${c.eyebrow ? ` · ${esc(c.eyebrow)}` : ''}</span>
+          </span>
+          <span class="chev">${icons.chevron}</span>
+        </button>
+      </h3>
+      <div class="cat-body" id="body-${esc(c.id)}" ${open ? '' : 'hidden'}>${open ? listHtml(list) : ''}</div>
     </section>`;
 }
 
-function jumpToCategory(hashId, smooth = true) {
+function toggleCategory(id, force) {
+  const block = $(`#cat-${CSS.escape(id)}`);
+  if (!block) return;
+  const open = force ?? state.openCat !== id;
+  // Close whichever category is open (only one at a time).
+  for (const other of $$('.cat.open')) {
+    if (other === block && open) continue;
+    other.classList.remove('open');
+    $('.cat-head', other).setAttribute('aria-expanded', 'false');
+    const body = $('.cat-body', other);
+    $$('video', body).forEach((v) => v.pause());
+    body.hidden = true;
+    body.innerHTML = '';
+  }
+  state.openCat = open ? id : null;
+  if (open && !block.classList.contains('open')) {
+    const c = data.categories.find((x) => x.id === id);
+    const body = $('.cat-body', block);
+    block.classList.add('open');
+    $('.cat-head', block).setAttribute('aria-expanded', 'true');
+    body.innerHTML = listHtml(dishesIn(c));
+    body.hidden = false;
+    observeVideos(body);
+  }
+  if (open) {
+    // Closing a category above this one moves the page, so bring the opened heading to the top.
+    const top = block.getBoundingClientRect().top;
+    const toolbarH = $('.toolbar').offsetHeight;
+    if (top < toolbarH || top > innerHeight * 0.6) scrollTo({ top: scrollY + top - toolbarH, behavior: 'auto' });
+  }
+  pickActive();
+}
+
+function jumpToCategory(hashId) {
   if (!hashId?.startsWith('cat-')) return;
   const id = hashId.slice(4);
   if (!$(`#cat-${CSS.escape(id)}`)) clearAll(); // in results mode: go back to browsing first
-  $(`#cat-${CSS.escape(id)}`)?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' });
+  toggleCategory(id, true);
+  const block = $(`#cat-${CSS.escape(id)}`);
+  if (block) scrollTo({ top: scrollY + block.getBoundingClientRect().top - $('.toolbar').offsetHeight, behavior: 'auto' });
 }
 
 /* Floating "Menu" button: appears once you scroll past the category overview, opens a category list. */
@@ -369,7 +411,8 @@ function onScrollFab() {
 function openCategories() {
   const toolbarH = $('.toolbar').offsetHeight;
   let current = null;
-  for (const el of $$('.cat')) if (el.getBoundingClientRect().top <= toolbarH + 2) current = el.id;
+  const openEl = $('.cat.open');
+  if (openEl && openEl.getBoundingClientRect().top <= toolbarH + 2) current = openEl.id;
   const html = data.groups.map((g) => {
     const cats = data.categories.filter((c) => c.group === g.id && countIn(c));
     if (!cats.length) return '';
@@ -433,16 +476,11 @@ function renderResults(feed, parsed, filters) {
 
   // Group by category when not ranking by keywords.
   let html = '';
-  if (parsed.terms.length) html = list.map((x) => rowCard(x.d)).join('');
+  if (parsed.terms.length) html = listHtml(list.map((x) => x.d));
   else {
-    let current = null;
-    for (const { d } of list) {
-      if (d.category !== current) {
-        current = d.category;
-        html += `<h3 class="results-cat">${esc(ctx.categoryLabel(d))}</h3>`;
-      }
-      html += rowCard(d);
-    }
+    const byCat = new Map();
+    for (const { d } of list) byCat.set(d.category, [...(byCat.get(d.category) || []), d]);
+    for (const [, ds] of byCat) html += `<h3 class="results-cat">${esc(ctx.categoryLabel(ds[0]))}</h3>${listHtml(ds)}`;
   }
   feed.innerHTML = `${summary}<div class="results">${html}</div>`;
 }
@@ -532,6 +570,25 @@ function featureCard(d, i) {
     </article>`;
 }
 
+// Items with a video show as square cards, two per row, ahead of the compact photo rows.
+const hasVideo = (d) => Boolean(d.video) && !failedVideos.has(d.video);
+function listHtml(list) {
+  const vids = list.filter(hasVideo);
+  const rest = list.filter((d) => !hasVideo(d));
+  return `${vids.length ? `<div class="squares">${vids.map(squareCard).join('')}</div>` : ''}${rest.map(rowCard).join('')}`;
+}
+
+function squareCard(d) {
+  return `
+    <article class="square${soldOut(d) ? ' is-soldout' : ''}" data-id="${esc(d.id)}">
+      ${mediaHtml(d, 'media sq-media', { w: 480 })}
+      <div class="sq-body">
+        <h3>${vegMark(d)}<button type="button" class="name-btn">${esc(d.name)}</button></h3>
+        <div class="sq-foot"><span class="price">${esc(fmtPrice(d.price))}</span>${d.prepTime ? `<span class="pill">${icons.clock}${d.prepTime} min</span>` : ''}</div>
+      </div>
+    </article>`;
+}
+
 function rowCard(d) {
   const badge = d.badges[0];
   const media = d.image || d.video;
@@ -549,6 +606,8 @@ function rowCard(d) {
 
 function onFeedClick(e) {
   const t = e.target;
+  const cat = t.closest('[data-cat]');
+  if (cat) return toggleCategory(cat.dataset.cat);
   const jump = t.closest('[data-jump]');
   if (jump) {
     e.preventDefault();

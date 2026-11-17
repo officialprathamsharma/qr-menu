@@ -28,9 +28,10 @@ A desktop browser shows the "scan with your phone" screen; click **Preview on th
   Why: NN/g and Baymard research says lists with cropped thumbnails let people compare quickly, and large cards
   should be kept for a few featured items.
 - **Category overview** of Drinks and Food. Tap a category to jump to it.
-- **Categories are always open.** Each category's header sticks under the search bar while you scroll through it,
-  until the next one pushes it away, and a thick band separates categories, so you always know where you are.
-  Once you scroll past the overview, a floating **Menu** button opens a list of categories to jump between.
+- **Categories are collapsible headings, one open at a time**: opening a category closes the previous one. The open
+  heading sticks under the search bar while you scroll its items. Once you scroll past the overview, a floating
+  **Menu** button opens a list of categories to jump between.
+- **Items with a video show as square cards**, two per row, above the compact photo rows (in categories and search results).
 - **Quick filters**: Popular · Veg (vegetarian *food*; drinks are excluded) · Drinks · Food. The ⚙ button in the search bar opens the full filters:
   Vegetarian / Vegan / No egg / Non-veg; leave out Dairy / Gluten / Nuts / Coffee; Hot / Cold;
   ready in ≤10 min, spicy or not, light (≤400 kcal); max price; and an autoplay on/off switch.
