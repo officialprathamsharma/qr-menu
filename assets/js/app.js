@@ -351,36 +351,72 @@ function categoryBlock(c) {
     </section>`;
 }
 
+/* Accordion animation: the body slides open/closed (height + fade) and the chevron turns.
+   A category closing ABOVE the one you tapped collapses instantly and the page is shifted to match, so the
+   heading under your finger doesn't jump; one closing below it slides shut. Reduced motion: no animation. */
+const ACC_MS = prefersReduced ? 0 : 300;
+const ACC_EASE = 'cubic-bezier(0.2, 0.8, 0.2, 1)';
+const toolbarHeight = () => $('.toolbar')?.offsetHeight || 0;
+
+function slide(body, from, to, done) {
+  body.getAnimations().forEach((a) => a.cancel());
+  if (!ACC_MS) return done?.();
+  body.style.overflow = 'hidden';
+  const anim = body.animate(
+    [{ height: `${from}px`, opacity: from ? 1 : 0 }, { height: `${to}px`, opacity: to ? 1 : 0 }],
+    { duration: ACC_MS, easing: ACC_EASE },
+  );
+  anim.onfinish = () => { body.style.overflow = ''; done?.(); };
+}
+
+function collapse(block, animate) {
+  block.classList.remove('open');
+  $('.cat-head', block).setAttribute('aria-expanded', 'false');
+  const body = $('.cat-body', block);
+  $$('video', body).forEach((v) => v.pause());
+  const finish = () => { body.hidden = true; body.innerHTML = ''; };
+  if (animate) slide(body, body.offsetHeight, 0, finish);
+  else { body.getAnimations().forEach((a) => a.cancel()); finish(); }
+}
+
+function expand(block, c) {
+  block.classList.add('open');
+  $('.cat-head', block).setAttribute('aria-expanded', 'true');
+  const body = $('.cat-body', block);
+  body.innerHTML = listHtml(dishesIn(c));
+  body.hidden = false;
+  observeVideos(body);
+  slide(body, 0, Math.min(body.scrollHeight, innerHeight * 1.5));
+}
+
 function toggleCategory(id, force) {
   const block = $(`#cat-${CSS.escape(id)}`);
   if (!block) return;
   const open = force ?? state.openCat !== id;
-  // Close whichever category is open (only one at a time).
+  const tb = toolbarHeight();
+
+  // Closing the open category by tapping its own heading.
+  if (!open) {
+    const stuck = block.getBoundingClientRect().top < tb; // heading is pinned: content above the fold
+    collapse(block, !stuck);
+    if (stuck) scrollTo({ top: scrollY + block.getBoundingClientRect().top - tb, behavior: 'auto' });
+    state.openCat = null;
+    return pickActive();
+  }
+
+  // Opening: close the other one first (only one open at a time).
+  const before = block.getBoundingClientRect().top;
   for (const other of $$('.cat.open')) {
-    if (other === block && open) continue;
-    other.classList.remove('open');
-    $('.cat-head', other).setAttribute('aria-expanded', 'false');
-    const body = $('.cat-body', other);
-    $$('video', body).forEach((v) => v.pause());
-    body.hidden = true;
-    body.innerHTML = '';
+    if (other === block) continue;
+    const isAbove = other.compareDocumentPosition(block) & Node.DOCUMENT_POSITION_FOLLOWING;
+    collapse(other, !isAbove);
+    if (isAbove) scrollTo({ top: scrollY + block.getBoundingClientRect().top - before, behavior: 'auto' });
   }
-  state.openCat = open ? id : null;
-  if (open && !block.classList.contains('open')) {
-    const c = data.categories.find((x) => x.id === id);
-    const body = $('.cat-body', block);
-    block.classList.add('open');
-    $('.cat-head', block).setAttribute('aria-expanded', 'true');
-    body.innerHTML = listHtml(dishesIn(c));
-    body.hidden = false;
-    observeVideos(body);
-  }
-  if (open) {
-    // Closing a category above this one moves the page, so bring the opened heading to the top.
-    const top = block.getBoundingClientRect().top;
-    const toolbarH = $('.toolbar').offsetHeight;
-    if (top < toolbarH || top > innerHeight * 0.6) scrollTo({ top: scrollY + top - toolbarH, behavior: 'auto' });
-  }
+  state.openCat = id;
+  if (!block.classList.contains('open')) expand(block, data.categories.find((x) => x.id === id));
+  // Bring the heading near the top if it's hidden under the toolbar or low on the screen.
+  const top = block.getBoundingClientRect().top;
+  if (top < tb || top > innerHeight * 0.55) scrollTo({ top: scrollY + top - tb, behavior: prefersReduced ? 'auto' : 'smooth' });
   pickActive();
 }
 
@@ -390,7 +426,7 @@ function jumpToCategory(hashId) {
   if (!$(`#cat-${CSS.escape(id)}`)) clearAll(); // in results mode: go back to browsing first
   toggleCategory(id, true);
   const block = $(`#cat-${CSS.escape(id)}`);
-  if (block) scrollTo({ top: scrollY + block.getBoundingClientRect().top - $('.toolbar').offsetHeight, behavior: 'auto' });
+  if (block) scrollTo({ top: scrollY + block.getBoundingClientRect().top - toolbarHeight(), behavior: prefersReduced ? 'auto' : 'smooth' });
 }
 
 /* Floating "Menu" button: appears once you scroll past the category overview, opens a category list. */
