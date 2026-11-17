@@ -231,7 +231,7 @@ function renderStart() {
   root.innerHTML = `
     <div class="login"><div style="max-width:420px">
       <h1>Set up your menu</h1>
-      <p>Your menu is empty. Start from the sample data for <b>${esc(slug)}</b> if it exists, or from a blank menu.</p>
+      <p>Your menu is empty. Start from a sample menu (a full café menu with photos and videos you can edit), or from a blank menu.</p>
       <p style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
         <button class="btn" id="from-sample">Start from sample</button>
         <button class="btn ghost" id="blank">Blank menu</button>
@@ -239,7 +239,10 @@ function renderStart() {
       <p class="error" id="start-err"></p>
     </div></div>`;
   $('#from-sample').onclick = async () => {
-    try { menu = await loadStatic(slug); } catch { $('#start-err').textContent = 'No sample found for this restaurant.'; return; }
+    // This restaurant's own starter file if we prepared one, otherwise the Arabico sample.
+    try { menu = await loadStatic(slug); } catch {
+      try { menu = await loadStatic('arabico'); } catch { $('#start-err').textContent = "Couldn't load the sample menu. Check your connection and try again."; return; }
+    }
     normalize(); renderApp(); setDirty(true);
   };
   $('#blank').onclick = () => {

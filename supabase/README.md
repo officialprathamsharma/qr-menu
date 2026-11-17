@@ -29,9 +29,15 @@ Videos use the most bandwidth. Ask owners for 720p clips under about 15 MB.
 
 1. **Authentication → Users → Add user**: enter the owner's email and a temporary password (or send an invite).
 2. Edit and run [`add-restaurant.sql`](add-restaurant.sql) with the restaurant's slug and the owner's email.
-3. Send the owner `https://<site>/admin/`. On first sign-in they click **Start from sample** (or **Blank menu**), then
-   **Save & publish**.
+3. The owner gets an invite email. Its link opens the dashboard, where they choose a password. They then click
+   **Start from sample** (their own `data/<slug>.json` if it exists, otherwise the Arabico sample) or **Blank menu**,
+   then **Save & publish**.
 4. Each table's QR code: `https://<site>/?r=<slug>&t=<table number>`.
+
+## Demo account
+
+The `demo` store (`?r=demo`) belongs to the project owner's login and is for showing the dashboard to prospects.
+Edits there never affect a real restaurant's menu.
 
 ## How data flows
 
