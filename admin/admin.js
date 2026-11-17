@@ -20,6 +20,11 @@ const params = new URLSearchParams(location.search);
 let slug = (params.get('r') || 'arabico').toLowerCase().replace(/[^a-z0-9-]/g, '') || 'arabico';
 
 let menu = null;
+// Invite and password-reset emails land here with "#…&type=invite|recovery" in the URL.
+// Read it before supabase-js consumes the hash, so we can ask the owner to choose a password.
+const authLink = new URLSearchParams(location.hash.slice(1));
+const linkType = authLink.get('type');
+const linkError = authLink.get('error_description');
 let dirty = false;
 let view = 'items';
 let itemSearch = '';
@@ -121,7 +126,8 @@ async function boot() {
   if (MODE === 'live') {
     const sb = await getSupabase();
     const { data: { session } } = await sb.auth.getSession();
-    if (!session) return renderLogin();
+    if (!session) return renderLogin(linkError ? `That link didn't work: ${linkError}. Ask for a new one below.` : '');
+    if (linkType === 'invite' || linkType === 'recovery') return renderSetPassword(linkType, session.user.email);
     const { data: rows, error } = await sb.from('menus').select('slug').eq('owner_id', session.user.id).order('slug');
     if (error) return fatal(`Couldn't load your restaurant: ${error.message}`);
     if (!rows?.length) return fatal('This account is not linked to a restaurant yet. Please contact QR Menu support.', true);
@@ -154,7 +160,35 @@ function fatal(msg, withSignOut = false) {
   $('#signout')?.addEventListener('click', signOut);
 }
 
-function renderLogin() {
+function renderSetPassword(type, email) {
+  history.replaceState(null, '', location.pathname + location.search);
+  root.innerHTML = `
+    <div class="login">
+      <form id="setpw" novalidate>
+        <h1>${type === 'invite' ? 'Welcome' : 'Reset password'}</h1>
+        <p>Choose a password for <b>${esc(email || '')}</b>. You'll use it to sign in to your dashboard.</p>
+        <label class="field">New password<input type="password" name="password" autocomplete="new-password" minlength="8" required></label>
+        <label class="field">Confirm password<input type="password" name="confirm" autocomplete="new-password" minlength="8" required></label>
+        <p class="error" id="setpw-err" role="alert"></p>
+        <button class="btn" type="submit">Save password</button>
+      </form>
+    </div>`;
+  const form = $('#setpw');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const err = $('#setpw-err');
+    const pw = form.password.value;
+    if (pw.length < 8) { err.textContent = 'Use at least 8 characters.'; return; }
+    if (pw !== form.confirm.value) { err.textContent = "The passwords don't match."; return; }
+    const sb = await getSupabase();
+    const { error } = await sb.auth.updateUser({ password: pw });
+    if (error) { err.textContent = error.message; return; }
+    root.innerHTML = '<div class="boot"><span></span></div>';
+    location.reload();
+  });
+}
+
+function renderLogin(notice = '') {
   root.innerHTML = `
     <div class="login">
       <form id="login" novalidate>
@@ -162,7 +196,7 @@ function renderLogin() {
         <p>Sign in to manage your menu, photos and videos.</p>
         <label class="field">Email<input type="email" name="email" autocomplete="username" required></label>
         <label class="field">Password<input type="password" name="password" autocomplete="current-password" required></label>
-        <p class="error" id="login-err" role="alert"></p>
+        <p class="error" id="login-err" role="alert">${esc(notice)}</p>
         <button class="btn" type="submit">Sign in</button>
         <button class="btn ghost" type="button" id="forgot">Email me a reset link</button>
       </form>
