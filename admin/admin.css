@@ -186,3 +186,23 @@ main.view { max-width: 980px; margin: 0 auto; padding: 20px 20px 80px; }
   .drawer { width: 100%; border-left: 0; }
 }
 @media (min-width: 641px) { .item .tools { display: contents; } }
+
+/* Import drawer */
+.imp-step { padding: 16px 0; border-bottom: 1px solid var(--line); }
+.imp-step h3 { font-size: 15px; margin-bottom: 4px; }
+.imp-step .hint { line-height: 1.5; }
+.imp-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.imp-actions .input { flex: 1; min-width: 200px; }
+#imp-result { padding-top: 14px; }
+#imp-result .error { color: var(--danger); font-size: 13px; }
+.imp-summary { display: flex; flex-direction: column; gap: 4px; font-size: 13px; margin-bottom: 12px; }
+.imp-summary .warn { color: #e8b923; }
+.imp-table-wrap { max-height: 46vh; overflow: auto; border: 1px solid var(--line); border-radius: 12px; }
+.imp-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.imp-table th, .imp-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.imp-table td:first-child { white-space: normal; }
+.imp-table th { position: sticky; top: 0; background: var(--surface); color: var(--muted); font-weight: 600; }
+.imp-photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; }
+.imp-photos img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); }
+.imp-mode { border: 0; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.imp-mode small { color: var(--faint); }

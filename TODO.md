@@ -28,7 +28,11 @@ Goal: a licence bought for one branch only works at that branch.
 - [ ] Optional: rotating signed table tokens in the QR (`?k=<signed>`) so screenshots of the QR expire
 
 ## Pilot next steps
-- [ ] Create the Supabase project, fill in assets/js/config.js, onboard Arabico's owner
+- [x] Create the Supabase project, fill in assets/js/config.js
+- [x] Demo store (`demo`, Little Bean Café) linked to the project owner's login
+- [x] Import menus from Excel/CSV and Zomato links (EazyDiner/Dineout: menu photos only)
+- [ ] Onboard Arabico's owner (invite + add-restaurant.sql)
+- [ ] Optional: read EazyDiner/Dineout menu photos into items (OCR or an AI vision model)
 - [ ] Guest ordering: cart → "send to kitchen" with table number → live order inbox in the dashboard (Supabase Realtime)
 - [ ] Delete orphaned media from storage when a photo/video is replaced
 - [ ] Optional AI search for questions the rules can't parse (send only the query + menu, never guest data)

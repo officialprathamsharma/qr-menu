@@ -147,6 +147,20 @@ body.framed #app { max-width: 420px; border-inline: 1px solid var(--line); box-s
 .media { position: relative; aspect-ratio: 4 / 3; background: var(--surface-2); overflow: hidden; }
 .media > img, .media > video, .row-media > img, .row-media > video { position: absolute; inset: 0; }
 .media > video, .row-media > video, .sheet-media > video { opacity: 0; transition: opacity 0.35s; }
+/* Shimmer while a photo downloads, then the photo fades in */
+.media, .row-media, .sheet-media {
+  background: linear-gradient(100deg, var(--surface-2) 30%, color-mix(in srgb, var(--surface-2) 70%, #fff 8%) 50%, var(--surface-2) 70%) 0 0 / 300% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+.media > img, .row-media > img, .sheet-media > img { opacity: 0; transition: opacity 0.3s; }
+.media > img.ld, .row-media > img.ld, .sheet-media > img.ld { opacity: 1; }
+.media:has(> img.ld), .row-media:has(> img.ld), .sheet-media:has(> img.ld) { animation: none; }
+.row.no-media { grid-template-columns: 1fr; }
+.no-photo { animation: none; display: grid; place-items: center; background: radial-gradient(circle at 30% 20%, color-mix(in srgb, var(--primary) 22%, var(--surface-2)), var(--surface-2) 70%); }
+.no-photo span { font: italic 500 44px var(--serif); color: color-mix(in srgb, var(--primary) 70%, #fff); }
+.media:not(:has(> img)):not(.no-photo) { animation: none; }
+@keyframes shimmer { to { background-position: -150% 0; } }
+@media (prefers-reduced-motion: reduce) { .media, .row-media, .sheet-media { animation: none; } }
 .playing > video { opacity: 1 !important; }
 
 /* Compact rows: ~4–5 per phone screen, photo on the right (Swiggy/Zomato pattern) */
@@ -171,8 +185,6 @@ body.framed #app { max-width: 420px; border-inline: 1px solid var(--line); box-s
   position: relative; width: 108px; height: 108px; border-radius: 16px; overflow: hidden;
   background: var(--surface-2); flex: none;
 }
-.row-media .vplay { width: 30px; height: 30px; right: 6px; bottom: 6px; }
-.row-media .vplay svg { width: 12px; height: 12px; }
 
 .title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .price { font-weight: 600; font-size: 15px; color: var(--primary); white-space: nowrap; font-variant-numeric: tabular-nums; }
@@ -196,12 +208,7 @@ body.framed #app { max-width: 420px; border-inline: 1px solid var(--line); box-s
 .badge.secondary { background: var(--secondary); color: var(--on-secondary); border-color: transparent; }
 .glass { background: rgba(0, 0, 0, 0.55); color: #fff; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
 
-/* Video controls: always-visible play/pause button, buffering spinner */
-.vplay {
-  position: absolute; right: 10px; bottom: 10px; z-index: 3;
-  width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center;
-}
-.vplay svg { width: 15px; height: 15px; }
+/* Buffering spinner (shown only while a clip is loading) */
 .vspin {
   position: absolute; left: 50%; top: 50%; z-index: 2; width: 26px; height: 26px; margin: -13px 0 0 -13px;
   border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.35); border-top-color: #fff;
@@ -228,26 +235,49 @@ body.framed #app { max-width: 420px; border-inline: 1px solid var(--line); box-s
 }
 .ov-chip small { color: var(--faint); font-size: 11px; font-variant-numeric: tabular-nums; }
 
-.group { margin-top: 26px; }
-.group-title {
-  font: italic 500 24px/1.2 var(--serif); padding: 0 18px 10px;
+/* Categories: always open. Each header sticks under the search bar until the next category pushes it
+   away, and a thick band separates categories, so it's always clear where one ends and the next starts. */
+.group { margin-top: 30px; }
+.group-title { font: italic 500 26px/1.2 var(--serif); padding: 0 18px 12px; }
+.cat { scroll-margin-top: var(--toolbar-h, 118px); }
+.cat + .cat { border-top: 8px solid var(--surface); }
+.cat-head {
+  position: sticky; top: var(--toolbar-h, 118px); z-index: 10;
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  padding: 14px 18px 10px; background: var(--bg);
   border-bottom: 1px solid var(--line);
 }
-.cat { scroll-margin-top: 118px; border-bottom: 1px solid var(--line); }
-.cat-head {
-  width: 100%; display: flex; align-items: center; gap: 12px; padding: 14px 18px; text-align: left; min-height: 64px;
+.cat-title { font-size: 17px; font-weight: 700; letter-spacing: 0.01em; }
+.cat-title::before {
+  content: ''; display: inline-block; width: 4px; height: 15px; margin-right: 10px; border-radius: 2px;
+  background: var(--primary); vertical-align: -1px;
 }
-.cat-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-.cat-title { font-size: 16px; font-weight: 600; }
-.cat-meta { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.peek { display: flex; }
-.peek img { width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--bg); margin-left: -8px; }
-.cat-head[aria-expanded='true'] .peek { display: none; }
-.chev { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); flex: none; }
-.chev svg { width: 16px; height: 16px; transition: transform 0.2s; }
-.cat-head[aria-expanded='true'] .chev svg { transform: rotate(180deg); }
-.cat-body { border-top: 1px solid var(--line); }
+.cat-meta { font-size: 12px; color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cat-sub { padding: 8px 18px 0; font-size: 12.5px; color: var(--muted); }
 .cat-body .row:last-child { border-bottom: 0; }
+
+/* Floating Menu button + category list sheet */
+.menu-fab {
+  position: fixed; left: 50%; bottom: calc(18px + var(--safe-bottom)); z-index: 30;
+  display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 18px; border-radius: 999px;
+  background: var(--text); color: var(--bg); font-weight: 700; font-size: 14px;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.6);
+  transform: translate(-50%, 90px); opacity: 0; pointer-events: none;
+  transition: transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.2s;
+}
+.menu-fab.show { transform: translate(-50%, 0); opacity: 1; pointer-events: auto; }
+.menu-fab svg { width: 18px; height: 18px; }
+.catsheet { padding-top: 26px; }
+.catsheet h2 { font: italic 500 26px/1.2 var(--serif); }
+.catlist-group { margin-top: 18px; font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.catlist { list-style: none; margin-top: 6px; }
+.catlist button {
+  width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding: 13px 2px; border-bottom: 1px solid var(--line); font-size: 15px; text-align: left; color: var(--text);
+}
+.catlist button small { color: var(--faint); font-size: 13px; font-variant-numeric: tabular-nums; }
+.catlist button[aria-current='true'] { color: var(--primary); font-weight: 700; }
+.catlist button[aria-current='true'] small { color: var(--primary); }
 
 /* ---------- Search results ---------- */
 .results-head { padding: 16px 18px 8px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; }
@@ -256,7 +286,11 @@ body.framed #app { max-width: 420px; border-inline: 1px solid var(--line); box-s
 .understood { flex-basis: 100%; order: 3; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12px; color: var(--faint); }
 .understood span { padding: 3px 9px; border-radius: 999px; background: color-mix(in srgb, var(--primary) 16%, transparent); color: var(--primary); font-weight: 600; }
 .link-btn { margin-left: auto; color: var(--primary); font-size: 13px; font-weight: 600; padding: 6px 0; }
-.results-cat { font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); padding: 18px 18px 4px; font-weight: 600; }
+.results-cat {
+  position: sticky; top: var(--toolbar-h, 118px); z-index: 10; background: var(--bg);
+  font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--muted); padding: 16px 18px 8px; font-weight: 600;
+  border-bottom: 1px solid var(--line);
+}
 
 /* Indian-style veg / non-veg mark */
 .vnv { width: 15px; height: 15px; border: 1.5px solid currentColor; border-radius: 3px; display: inline-grid; place-items: center; flex: none; }
@@ -296,9 +330,6 @@ body.framed .sheet-panel { max-width: 420px; }
 .sheet-media { position: relative; aspect-ratio: 4 / 3; background: var(--surface-2); }
 .sheet-media > img, .sheet-media > video { position: absolute; inset: 0; }
 .sheet-media .badges { top: 16px; }
-.sheet-vctrl { position: absolute; right: 12px; bottom: 12px; z-index: 3; display: flex; gap: 8px; }
-.sheet-vctrl .vplay, .sheet-sound { position: static; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; }
-.sheet-sound svg { width: 18px; height: 18px; }
 .sheet-media .soldout-tag { top: auto; bottom: 16px; left: 16px; transform: none; }
 .fact .vnv { width: 13px; height: 13px; }
 

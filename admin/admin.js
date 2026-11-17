@@ -7,6 +7,8 @@
 import {
   supabaseEnabled, getSupabase, loadMenu, loadStatic, saveLocal, clearLocal, saveSupabase, uploadMedia, resolveMedia,
 } from '../assets/js/store.js';
+import { readSpreadsheet, rowsToItems, applyImport, TEMPLATE_CSV } from './importer.js';
+import { CONFIG } from '../assets/js/config.js';
 
 const root = document.getElementById('admin');
 const $ = (s, el = document) => el.querySelector(s);
@@ -44,6 +46,7 @@ const I = {
   video: svg('<rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3"/>'),
   ext: svg('<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>'),
   plus: svg('<path d="M12 5v14M5 12h14"/>'),
+  upload: svg('<path d="M12 16V4M7 9l5-5 5 5M4 20h16"/>'),
 };
 
 /* ---------- Helpers ---------- */
@@ -234,21 +237,24 @@ function renderStart() {
       <p>Your menu is empty. Start from a sample menu (a full café menu with photos and videos you can edit), or from a blank menu.</p>
       <p style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
         <button class="btn" id="from-sample">Start from sample</button>
+        <button class="btn ghost" id="import-start">Import a menu (Excel, CSV or Zomato link)</button>
         <button class="btn ghost" id="blank">Blank menu</button>
       </p>
       <p class="error" id="start-err"></p>
     </div></div>`;
   $('#from-sample').onclick = async () => {
-    // This restaurant's own starter file if we prepared one, otherwise the Arabico sample.
+    // This restaurant's own starter file if we prepared one, otherwise the neutral demo café (data/demo.json).
     try { menu = await loadStatic(slug); } catch {
-      try { menu = await loadStatic('arabico'); } catch { $('#start-err').textContent = "Couldn't load the sample menu. Check your connection and try again."; return; }
+      try { menu = { ...(await loadStatic('demo')), id: slug }; } catch { $('#start-err').textContent = "Couldn't load the sample menu. Check your connection and try again."; return; }
     }
     normalize(); renderApp(); setDirty(true);
   };
-  $('#blank').onclick = () => {
+  const blank = () => {
     menu = { id: slug, name: slug, tagline: '', currency: 'INR', locale: 'en-IN', groups: [{ id: 'drinks', label: 'Drinks' }, { id: 'food', label: 'Food' }], sections: [], dishes: [] };
     normalize(); renderApp(); setDirty(true);
   };
+  $('#blank').onclick = blank;
+  $('#import-start').onclick = () => { blank(); openImport(); };
 }
 
 /* ==========================================================
@@ -364,6 +370,158 @@ async function importJson(e) {
 }
 
 /* ==========================================================
+   Import: CSV / Excel file, or a Zomato / EazyDiner / Dineout link
+   ========================================================== */
+function openImport() {
+  const back = document.createElement('div');
+  back.className = 'drawer-back';
+  const drawer = document.createElement('aside');
+  drawer.className = 'drawer';
+  drawer.setAttribute('role', 'dialog');
+  drawer.setAttribute('aria-modal', 'true');
+  drawer.setAttribute('aria-labelledby', 'imp-title');
+  drawer.innerHTML = `
+    <div class="drawer-head">
+      <h2 id="imp-title">Import menu items</h2>
+      <button class="icon-btn" data-close aria-label="Close">${I.close}</button>
+    </div>
+    <div class="drawer-body" id="imp-body">
+      <section class="imp-step">
+        <h3>From a spreadsheet</h3>
+        <p class="hint">Excel (.xlsx, .xls) or CSV. One row per item. Columns like Name, Category, Price, Description,
+          Veg/Non-veg, Prep time and Photo URL are recognised automatically; only Name is required.</p>
+        <div class="imp-actions">
+          <label class="btn">${I.upload}Choose file<input type="file" id="imp-file" class="sr-only"
+            accept=".csv,.tsv,.txt,.xlsx,.xls,.xlsm,.ods,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"></label>
+          <button class="btn ghost" id="imp-template">Download template</button>
+        </div>
+      </section>
+      <section class="imp-step">
+        <h3>From a listing link</h3>
+        <p class="hint">Paste the restaurant's Zomato, EazyDiner or Swiggy Dineout page. Zomato gives the full item list
+          when the restaurant takes online orders. EazyDiner and Dineout only show photos of the printed menu.</p>
+        <form class="imp-actions" id="imp-link-form">
+          <input class="input" type="url" id="imp-url" placeholder="https://www.zomato.com/…" required>
+          <button class="btn" type="submit" id="imp-go">Fetch menu</button>
+        </form>
+      </section>
+      <div id="imp-result" aria-live="polite"></div>
+    </div>
+    <div class="drawer-foot" id="imp-foot" hidden>
+      <fieldset class="imp-mode">
+        <label><input type="radio" name="imp-mode" value="add" checked> Add to my menu <small>(items with the same name are updated)</small></label>
+        <label><input type="radio" name="imp-mode" value="replace"> Replace all items <small>(branding stays)</small></label>
+      </fieldset>
+      <span class="spacer"></span>
+      <button class="btn ghost" data-close>Cancel</button>
+      <button class="btn" id="imp-apply">Import</button>
+    </div>`;
+  document.body.append(back, drawer);
+  document.documentElement.classList.add('lock');
+  let pending = null;
+  const close = () => { back.remove(); drawer.remove(); document.documentElement.classList.remove('lock'); };
+  back.onclick = close;
+  drawer.addEventListener('click', (e) => { if (e.target.closest('[data-close]')) close(); });
+  drawer.addEventListener('keydown', (e) => { if (e.key === 'Escape') close(); });
+  $('#imp-url', drawer).focus();
+
+  const result = $('#imp-result', drawer);
+  const foot = $('#imp-foot', drawer);
+  const show = (items, note = '', images = []) => {
+    pending = items;
+    const cats = [...new Set(items.map((i) => i.category))];
+    const known = new Set(categories().map((c) => c.label.toLowerCase()));
+    const newCats = cats.filter((c) => !known.has(c.toLowerCase()));
+    const noPrice = items.filter((i) => i.price == null).length;
+    const noDiet = items.filter((i) => i.veg == null).length;
+    result.innerHTML = `
+      ${items.length ? `
+        <div class="imp-summary">
+          <p><b>${items.length}</b> items in <b>${cats.length}</b> categories${newCats.length ? ` · ${newCats.length} new: ${esc(newCats.slice(0, 6).join(', '))}${newCats.length > 6 ? '…' : ''}` : ''}</p>
+          ${noPrice ? `<p class="warn">${noPrice} without a price (they'll show ₹0 until you edit them).</p>` : ''}
+          ${noDiet ? `<p class="hint">${noDiet} without a veg/non-veg mark. Drinks are marked veg; set food items in the editor.</p>` : ''}
+          ${note ? `<p class="hint">${note}</p>` : ''}
+          <p class="hint">Photos and videos aren't included; add them per item after importing.</p>
+        </div>
+        <div class="imp-table-wrap"><table class="imp-table">
+          <thead><tr><th>Item</th><th>Category</th><th>Price</th><th>Diet</th></tr></thead>
+          <tbody>${items.slice(0, 200).map((i) => `<tr><td>${esc(i.name)}</td><td>${esc(i.category)}</td>
+            <td>${i.price == null ? '—' : esc(fmt(i.price))}</td><td>${i.veg == null ? '—' : i.veg ? 'Veg' : i.egg ? 'Egg' : 'Non-veg'}</td></tr>`).join('')}</tbody>
+        </table></div>` : ''}
+      ${images.length ? `
+        <div class="imp-summary"><p>This page only has <b>photos of the printed menu</b> (${images.length}). Open them, type the items into the
+          template, and upload it above.</p></div>
+        <div class="imp-photos">${images.map((u) => `<a href="${esc(u)}" target="_blank" rel="noopener"><img src="${esc(u)}" alt="Menu page" loading="lazy"></a>`).join('')}</div>` : ''}`;
+    foot.hidden = !items.length;
+    $('#imp-apply', drawer).textContent = `Import ${items.length} items`;
+  };
+  const fail = (msg) => { pending = null; foot.hidden = true; result.innerHTML = `<p class="error">${esc(msg)}</p>`; };
+
+  $('#imp-template', drawer).onclick = () => {
+    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([TEMPLATE_CSV], { type: 'text/csv' })), download: 'menu-template.csv' });
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
+
+  $('#imp-file', drawer).onchange = async (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    result.innerHTML = '<p class="hint">Reading…</p>';
+    try {
+      const { items, unknownColumns } = rowsToItems(await readSpreadsheet(file));
+      show(items, unknownColumns.length ? `Ignored columns: ${esc(unknownColumns.join(', '))}.` : '');
+    } catch (err) {
+      fail(err.message);
+    }
+  };
+
+  $('#imp-link-form', drawer).onsubmit = async (e) => {
+    e.preventDefault();
+    if (!supabaseEnabled()) return fail('Importing from a link needs the pilot backend (Supabase). Use a spreadsheet in demo mode.');
+    const btn = $('#imp-go', drawer);
+    btn.disabled = true;
+    btn.textContent = 'Fetching…';
+    result.innerHTML = '<p class="hint">Reading the page. This can take up to 20 seconds.</p>';
+    try {
+      const res = await fetch(`${CONFIG.supabaseUrl}/functions/v1/import-menu`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: CONFIG.supabaseAnonKey, Authorization: `Bearer ${await accessToken()}` },
+        body: JSON.stringify({ url: $('#imp-url', drawer).value.trim() }),
+      });
+      const out = await res.json().catch(() => ({ error: `Unexpected reply (${res.status}).` }));
+      if (out.error) return fail(out.error);
+      if (!out.items.length && !out.menuImages.length) return fail("Couldn't find a menu on that page. For Zomato, use the restaurant's page (it should have an Order Online tab).");
+      show(out.items, out.items.length ? `From ${esc(out.source)}${out.name ? ` · ${esc(out.name)}` : ''}. Descriptions are often empty on these sites.` : '', out.menuImages);
+    } catch (err) {
+      fail(`Couldn't fetch the menu: ${err.message}`);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Fetch menu';
+    }
+  };
+
+  $('#imp-apply', drawer).onclick = () => {
+    if (!pending?.length) return;
+    const replace = $('input[name=imp-mode]:checked', drawer).value === 'replace';
+    if (replace && menu.dishes.length && !confirm(`Replace all ${menu.dishes.length} current items with ${pending.length} imported items?`)) return;
+    const stats = applyImport(menu, pending, { replace, slugify });
+    close();
+    view = 'items';
+    itemCat = 'all';
+    renderApp();
+    setDirty(true);
+    toast(`Imported: ${stats.added} added${stats.updated ? `, ${stats.updated} updated` : ''}${stats.newCategories ? `, ${stats.newCategories} new categories` : ''}. Review, then Save & publish.`);
+  };
+}
+
+async function accessToken() {
+  const sb = await getSupabase();
+  const { data } = await sb.auth.getSession();
+  return data.session?.access_token || CONFIG.supabaseAnonKey;
+}
+
+/* ==========================================================
    Items
    ========================================================== */
 function renderItems() {
@@ -381,6 +539,7 @@ function renderItems() {
         <option value="all">All categories</option>
         ${cats.map((c) => `<option value="${esc(c.match)}" ${itemCat === c.match ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}
       </select>
+      <button class="btn ghost" id="import-items">${I.upload}Import</button>
       <button class="btn" id="add-item">${I.plus}Add item</button>
     </div>
     <div class="stats">
@@ -392,6 +551,7 @@ function renderItems() {
   $('#item-q').oninput = (e) => { itemSearch = e.target.value; renderItemLists(); };
   $('#item-cat').onchange = (e) => { itemCat = e.target.value; renderItemLists(); };
   $('#add-item').onclick = () => openEditor(null);
+  $('#import-items').onclick = openImport;
   $('#item-lists').addEventListener('click', onItemListClick);
   $('#item-lists').addEventListener('change', onItemListChange);
   renderItemLists();

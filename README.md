@@ -27,9 +27,11 @@ A desktop browser shows the "scan with your phone" screen; click **Preview on th
   vegan, with a 108 px photo on the right. That fits about 4–5 items per phone screen.
   Why: NN/g and Baymard research says lists with cropped thumbnails let people compare quickly, and large cards
   should be kept for a few featured items.
-- **Category overview** of Drinks and Food. Tap a category to jump to it. Each category is an expandable heading
-  showing its item count and a peek of 3 photos.
-- **Quick filters**: Popular · Veg · Drinks · Food. The ⚙ button in the search bar opens the full filters:
+- **Category overview** of Drinks and Food. Tap a category to jump to it.
+- **Categories are always open.** Each category's header sticks under the search bar while you scroll through it,
+  until the next one pushes it away, and a thick band separates categories, so you always know where you are.
+  Once you scroll past the overview, a floating **Menu** button opens a list of categories to jump between.
+- **Quick filters**: Popular · Veg (vegetarian *food*; drinks are excluded) · Drinks · Food. The ⚙ button in the search bar opens the full filters:
   Vegetarian / Vegan / No egg / Non-veg; leave out Dairy / Gluten / Nuts / Coffee; Hot / Cold;
   ready in ≤10 min, spicy or not, light (≤400 kcal); max price; and an autoplay on/off switch.
 - **Plain-language search** with keywords and rules, no AI ([assets/js/search.js](assets/js/search.js)):
@@ -40,16 +42,26 @@ A desktop browser shows the "scan with your phone" screen; click **Preview on th
   - The results header shows what it understood ("Showing: Cold · No coffee"). A query that matches a dish name
     ("cold brew") ranks that dish first. If no item matches every word, it falls back to the closest matches.
 - **Video**:
-  - Only one video plays at a time: the topmost one that's mostly on screen, always muted.
-  - A **tap** toggles play/pause. Scrolling over a video never starts it, because there's no `touchstart` trigger.
-  - Every video has a visible, labelled play/pause button (WCAG 2.2.2).
-  - Autoplay is off by default for *reduce motion*, *data saver* and 2G users, and guests can switch it off.
+  - Only one video plays at a time: the topmost one that's mostly on screen, always muted, with no on-screen
+    buttons. Tapping a card opens the dish. Scrolling never starts a video (no `touchstart` trigger).
+  - Autoplay is off by default for *reduce motion*, *data saver* and 2G users, and guests can switch it off in Filters.
+  - **Fast on mobile data**: photos load first, with a shimmer in place, and no video downloads until they're done.
+    Cards use small files (a ~320 px photo for rows, 360p clips at ~1 MB instead of ~6 MB at 720p); the dish sheet
+    uses the full size.
   - A video that errors or hasn't started within 8 s is dropped and the photo stays.
+- Items with no photo yet (e.g. just imported) show without a thumbnail, so the list still looks tidy.
 - **Sold-out items** are greyed out with a "Sold out" tag and listed last in search results.
 
 ## Dashboard (`/admin/`)
 
 - **Items**: search, filter by category, available/sold-out toggle, move up/down, add, edit, duplicate, delete.
+- **Import** (Items → Import, or on an empty menu):
+  - Excel (.xlsx/.xls) or CSV. Column names are matched loosely ("Item Name", "Rate (₹)", "Veg/Non-Veg"…); only a
+    name column is required. There's a downloadable template. Categories that don't exist yet are created and
+    sorted into Drinks or Food; hot/cold, coffee and prep time are guessed from the names.
+  - A Zomato link imports the full item list; EazyDiner and Dineout links show photos of their printed menu
+    (that's all those sites publish). Needs the `import-menu` Edge Function (see supabase/README.md).
+  - "Add" updates items with the same name and keeps their photos; "Replace" swaps all items but keeps branding.
 - **Item editor**:
   - Photo upload (resized to WebP in the browser), plus tap-to-set focus point so crops keep the dish in view.
   - Video upload (≤50 MB, with a warning above 20 MB), plus **Use frame as photo**. Uploading a video with no
@@ -102,7 +114,10 @@ assets/js/store.js         data layer: Supabase | this browser (IndexedDB) | sta
 assets/js/config.js        Supabase URL + anon key (empty = demo mode)
 admin/                     restaurant dashboard
 supabase/                  schema, onboarding SQL, setup guide
-data/arabico.json          demo restaurant
+data/arabico.json          Arabico's menu (pilot restaurant)
+data/demo.json             Little Bean Café: the demo store and the "Start from sample" menu
+admin/importer.js          CSV / Excel / link import
+supabase/functions/        import-menu Edge Function (Zomato / EazyDiner / Dineout)
 tools/build-demo-data.py   regenerates the demo data
 TODO.md                    roadmap
 ```

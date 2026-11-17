@@ -1,0 +1,135 @@
+// Supabase Edge Function: import-menu
+// Reads a restaurant's public listing page and returns its menu for the dashboard's "Import from a link".
+//   POST { url }  →  { source, name, items: [{ name, category, price, description, veg, egg }], menuImages: [url] }
+// - Zomato (pages with online ordering): full item list from the page's embedded data.
+// - EazyDiner / Swiggy Dineout: these only publish PHOTOS of the printed menu, so we return those photos
+//   (plus any schema.org menu items the page happens to include).
+// Only these sites are allowed, so the function can't be used as a general web proxy.
+// Deploy: Supabase dashboard → Edge Functions → Deploy a new function → Via editor, name "import-menu", paste this file.
+
+const ALLOWED = [/(^|\.)zomato\.com$/, /(^|\.)eazydiner\.com$/, /(^|\.)swiggy\.com$/, /(^|\.)dineout\.co\.in$/];
+const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
+const cors = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
+type Item = { name: string; category: string; price: number | null; description: string; veg: boolean | null; egg: boolean; image?: string };
+
+const json = (body: unknown, status = 200) =>
+  new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
+  if (req.method !== 'POST') return json({ error: 'Use POST' }, 405);
+
+  let url: URL;
+  try {
+    url = new URL(String((await req.json()).url || '').trim());
+  } catch {
+    return json({ error: 'Paste the full link, starting with https://' }, 400);
+  }
+  if (url.protocol !== 'https:' || !ALLOWED.some((re) => re.test(url.hostname))) {
+    return json({ error: 'Only Zomato, EazyDiner and Swiggy Dineout links are supported.' }, 400);
+  }
+
+  // Zomato's menu lives on the /order page.
+  if (/zomato\.com$/.test(url.hostname) && !/\/order\/?$/.test(url.pathname)) {
+    url.pathname = url.pathname.replace(/\/(info|menu|reviews|photos)?\/?$/, '') + '/order';
+  }
+
+  let html: string;
+  try {
+    const res = await fetch(url, { headers: { 'User-Agent': UA, 'Accept-Language': 'en-IN,en;q=0.9', Accept: 'text/html' }, redirect: 'follow' });
+    if (!res.ok) return json({ error: `The site answered ${res.status}. It may be blocking automated requests; try again later or use a spreadsheet.` }, 502);
+    html = await res.text();
+  } catch (e) {
+    return json({ error: `Couldn't reach that page (${(e as Error).message}).` }, 502);
+  }
+
+  const out = { source: url.hostname.replace(/^www\./, ''), name: '', items: [] as Item[], menuImages: [] as string[] };
+  try {
+    if (/zomato\.com$/.test(url.hostname)) parseZomato(html, out);
+    else if (/eazydiner\.com$/.test(url.hostname)) parseNextData(html, out);
+    parseJsonLd(html, out);
+  } catch (e) {
+    return json({ error: `Couldn't read the menu on that page (${(e as Error).message}).` }, 422);
+  }
+  out.menuImages = [...new Set(out.menuImages)].slice(0, 40);
+  return json(out);
+});
+
+function parseZomato(html: string, out: { name: string; items: Item[] }) {
+  const m = html.match(/window\.__PRELOADED_STATE__\s*=\s*JSON\.parse\(("(?:[^"\\]|\\.)*")\);/);
+  if (!m) return;
+  const state = JSON.parse(JSON.parse(m[1]));
+  const r: any = Object.values(state?.pages?.restaurant || {})[0];
+  if (!r) return;
+  out.name = r?.sections?.SECTION_BASIC_INFO?.name || '';
+  for (const menu of r?.order?.menuList?.menus || []) {
+    const top = menu.menu?.name || '';
+    for (const c of menu.menu?.categories || []) {
+      const sub = c.category?.name || '';
+      const category = sub && sub !== top ? `${top} · ${sub}`.replace(/^ · /, '') : top || sub;
+      for (const { item: it } of c.category?.items || []) {
+        if (!it?.name) continue;
+        const slugs: string[] = [...(it.dietary_slugs || []), ...(it.tag_slugs || [])];
+        const veg = slugs.includes('veg') ? true : slugs.includes('non-veg') || slugs.includes('egg') ? false : null;
+        out.items.push({
+          name: String(it.name).trim(),
+          category,
+          price: Number(it.display_price ?? it.price ?? it.default_price) || null,
+          description: String(it.desc || '').trim(),
+          veg,
+          egg: slugs.includes('egg'),
+          image: it.item_image_url || it.media?.[0]?.image?.url || undefined,
+        });
+      }
+    }
+  }
+}
+
+function parseNextData(html: string, out: { name: string; menuImages: string[] }) {
+  const m = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
+  if (!m) return;
+  const p = JSON.parse(m[1])?.props?.pageProps || {};
+  const d = p.detailPageDataV2 || {};
+  out.name ||= d.name || p.metaData?.jsonSchema?.mainEntity?.name || '';
+  for (const tab of d.menus || []) for (const c of tab.content || []) if (c.image) out.menuImages.push(c.image);
+}
+
+// schema.org data many listing sites embed: Restaurant → hasMenu → hasMenuSection → hasMenuItem / image.
+function parseJsonLd(html: string, out: { name: string; items: Item[]; menuImages: string[] }) {
+  for (const m of html.matchAll(/<script[^>]+application\/ld\+json[^>]*>([\s\S]*?)<\/script>/g)) {
+    let data: any;
+    try { data = JSON.parse(m[1]); } catch { continue; }
+    const nodes: any[] = [];
+    const walk = (o: any) => {
+      if (Array.isArray(o)) return o.forEach(walk);
+      if (o && typeof o === 'object') { nodes.push(o); Object.values(o).forEach(walk); }
+    };
+    walk(data);
+    for (const n of nodes) {
+      if (!out.name && /Restaurant|FoodEstablishment|CafeOrCoffeeShop/.test(String(n['@type'])) && n.name) out.name = n.name;
+      if (n['@type'] !== 'MenuSection') continue;
+      const imgs = Array.isArray(n.image) ? n.image : n.image ? [n.image] : [];
+      out.menuImages.push(...imgs.map((x: any) => (typeof x === 'string' ? x : x?.url)).filter(Boolean));
+      const items = Array.isArray(n.hasMenuItem) ? n.hasMenuItem : n.hasMenuItem ? [n.hasMenuItem] : [];
+      if (out.items.length) continue; // already have a better source
+      for (const it of items) {
+        const offer = Array.isArray(it.offers) ? it.offers[0] : it.offers;
+        const diet = String(it.suitableForDiet || '');
+        out.items.push({
+          name: String(it.name || '').trim(),
+          category: n.name || 'Menu',
+          price: Number(offer?.price) || null,
+          description: String(it.description || '').trim(),
+          veg: /Vegetarian|Vegan/i.test(diet) ? true : null,
+          egg: false,
+        });
+      }
+    }
+  }
+  out.items = out.items.filter((i) => i.name);
+}

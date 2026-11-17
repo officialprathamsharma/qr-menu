@@ -1,0 +1,669 @@
+{
+ "id": "demo",
+ "name": "Little Bean Café",
+ "tagline": "Coffee · all-day breakfast",
+ "chef": "The Little Bean team",
+ "logo": null,
+ "currency": "INR",
+ "locale": "en-IN",
+ "theme": {
+  "primary": "#E0A96D",
+  "secondary": "#5E8B7E"
+ },
+ "footerNote": "Demo menu. Prices are in ₹ and exclusive of taxes.",
+ "badges": {
+  "bestseller": {
+   "label": "Bestseller",
+   "tone": "primary"
+  },
+  "signature": {
+   "label": "Signature",
+   "tone": "secondary"
+  },
+  "new": {
+   "label": "New",
+   "tone": "neutral"
+  },
+  "spicy": {
+   "label": "Spicy",
+   "tone": "neutral"
+  }
+ },
+ "groups": [
+  {
+   "id": "drinks",
+   "label": "Drinks"
+  },
+  {
+   "id": "food",
+   "label": "Food"
+  }
+ ],
+ "sections": [
+  {
+   "id": "most-loved",
+   "label": "Most loved at {name}",
+   "type": "tag",
+   "match": "most-loved",
+   "eyebrow": "Guest favourites",
+   "order": [
+    "cappuccino",
+    "spanish-iced-latte",
+    "chicken-pesto-sandwich",
+    "scrambled-eggs-toast",
+    "alfredo-pasta",
+    "peri-peri-fries"
+   ]
+  },
+  {
+   "id": "hot",
+   "label": "Hot Coffee",
+   "type": "category",
+   "match": "Hot Coffee",
+   "group": "drinks",
+   "eyebrow": "Pulled to order"
+  },
+  {
+   "id": "cold",
+   "label": "Cold Coffee",
+   "type": "category",
+   "match": "Cold Coffee",
+   "group": "drinks",
+   "eyebrow": "Over ice"
+  },
+  {
+   "id": "teas",
+   "label": "Teas & Coolers",
+   "type": "category",
+   "match": "Teas & Coolers",
+   "group": "drinks",
+   "eyebrow": "No coffee"
+  },
+  {
+   "id": "breakfast",
+   "label": "All-day Breakfast",
+   "type": "category",
+   "match": "All-day Breakfast",
+   "group": "food",
+   "eyebrow": "Served till close"
+  },
+  {
+   "id": "sandwiches",
+   "label": "Sandwiches",
+   "type": "category",
+   "match": "Sandwiches",
+   "group": "food",
+   "eyebrow": "On toasted sourdough"
+  },
+  {
+   "id": "bites",
+   "label": "Pasta & Bites",
+   "type": "category",
+   "match": "Pasta & Bites",
+   "group": "food",
+   "eyebrow": "To share or not"
+  }
+ ],
+ "dishes": [
+  {
+   "id": "cappuccino",
+   "name": "Cappuccino",
+   "category": "Hot Coffee",
+   "price": 289,
+   "prepTime": 4,
+   "image": "https://assets.mixkit.co/videos/41859/41859-thumb-720-0.jpg",
+   "video": "https://assets.mixkit.co/videos/41859/41859-720.mp4",
+   "description": "Equal parts espresso, steamed milk and airy foam.",
+   "tags": [
+    "most-loved"
+   ],
+   "badges": [],
+   "diet": {
+    "veg": true,
+    "egg": false,
+    "vegan": false,
+    "gf": false
+   },
+   "spice": 0,
+   "kcal": 120,
+   "allergens": [
+    "dairy"
+   ],
+   "course": "drink",
+   "temp": "hot",
+   "coffee": true,
+   "available": true
+  },
+  {
+   "id": "latte",
+   "name": "Latte",
+   "category": "Hot Coffee",
+   "price": 289,
+   "prepTime": 4,
+   "image": "https://images.unsplash.com/photo-1761783768352-e7f42bfa9988?w=900&q=70&auto=format&fit=crop",
+   "description": "Espresso with silky steamed milk and a thin layer of foam.",
+   "tags": [],
+   "badges": [],
+   "diet": {
+    "veg": true,
+    "egg": false,
+    "vegan": false,
+    "gf": false
+   },
+   "spice": 0,
+   "kcal": 150,
+   "allergens": [
+    "dairy"
+   ],
+   "course": "drink",
+   "temp": "hot",
+   "coffee": true,
+   "available": true
+  },
+  {
+   "id": "americano",
+   "name": "Americano",
+   "category": "Hot Coffee",
+   "price": 229,
+   "prepTime": 4,
+   "image": "https://assets.mixkit.co/videos/41865/41865-thumb-720-0.jpg",
+   "video": "https://assets.mixkit.co/videos/41865/41865-720.mp4",
+   "description": "A double shot of our house espresso, lengthened with hot water.",
+   "tags": [],
+   "badges": [],
+   "diet": {
+    "veg": true,
+    "egg": false,
+    "vegan": true,
+    "gf": false
+   },
+   "spice": 0,
+   "kcal": 10,
+   "course": "drink",
+   "temp": "hot",
+   "coffee": true,
+   "available": true
+  },
+  {
+   "id": "mocha",
+   "name": "Mocha",
+   "category": "Hot Coffee",
+   "price": 319,
+   "prepTime": 5,
+   "image": "https://assets.mixkit.co/videos/43935/43935-thumb-720-0.jpg",
+   "video": "https://assets.mixkit.co/videos/43935/43935-720.mp4",
+   "description": "Espresso, dark chocolate and steamed milk.",
+   "tags": [],
+   "badges": [],
+   "diet": {
+    "veg": true,
+    "egg": false,
+    "vegan": false,
+    "gf": false
+   },
+   "spice": 0,
+   "kcal": 260,
+   "allergens": [
+    "dairy"
+   ],
+   "course": "drink",
+   "temp": "hot",
+   "coffee": true,
+   "available": true
+  },
+  {
+   "id": "spanish-iced-latte",
+   "name": "Spanish Iced Latte",
+   "category": "Cold Coffee",
+   "price": 329,
+   "prepTime": 5,
+   "image": "https://images.unsplash.com/photo-1592663527359-cf6642f54cff?w=900&q=70&auto=format&fit=crop",
+   "description": "Iced espresso sweetened with creamy condensed milk.",
+   "tags": [
+    "most-loved"
+   ],
+   "badges": [
+    "bestseller"
+   ],
+   "diet": {
+    "veg": true,
+    "egg": false,
+    "vegan": false,
+    "gf": false
+   },
+   "spice": 0,
+   "kcal": 240,
+   "allergens": [
+    "dairy"
+   ],
+   "course": "drink",
+   "temp": "cold",
+   "coffee": true,
+   "available": true
+  },
+  {
+   "id": "iced-caramel-macchiato",
+   "name": "Iced Caramel Macchiato",
+   "category": "Cold Coffee",
+   "price": 339,
+   "prepTime": 5,
+   "image": "https://images.unsplash.com/photo-1517701550927-30cf4ba1dba5?w=900&q=70&auto=format&fit=crop",
+   "description": "Vanilla milk over ice, marked with espresso and a caramel drizzle.",
+   "tags": [],
+   "badges": [],
+   "diet": {
+    "veg": true,
+    "egg": false,
+    "vegan": false,
+    "gf": false
+   },
+   "spice": 0,
+   "kcal": 250,
+   "allergens": [
+    "dairy"
+   ],
+   "course": "drink",
+   "temp": "cold",
+   "coffee": true,
+   "available": true
+  },
+  {
+   "id": "vietnamese-iced-coffee",
+   "name": "Vietnamese Iced Coffee",
+   "category": "Cold Coffee",
+   "price": 339,
+   "prepTime": 6,
+   "image": "https://images.unsplash.com/photo-1559496417-e7f25cb247f3?w=900&q=70&auto=format&fit=crop",
+   "description": "Strong brewed coffee mixed with sweet condensed milk and poured over ice.",
+   "tags": [],
+   "badges": [],
+   "diet": {
+    "veg": true,
+    "egg": false,
+    "vegan": false,
+    "gf": false
+   },
+   "spice": 0,
+   "kcal": 230,
+   "allergens": [
+    "dairy"
+   ],
+   "course": "drink",
+   "temp": "cold",
+   "coffee": true,
+   "available": true
+  },
+  {
+   "id": "frappe",
+   "name": "Frappe",
+   "category": "Cold Coffee",
+   "price": 259,
+   "prepTime": 5,
+   "image": "https://images.unsplash.com/photo-1718267050202-9b1b6bfb8545?w=900&q=70&auto=format&fit=crop",
+   "description": "Coffee blended with ice cream until thick and frosty.",
+   "tags": [],
+   "badges": [],
+   "diet": {
+    "veg": true,
+    "egg": false,
+    "vegan": false,
+    "gf": false
+   },
+   "spice": 0,
+   "kcal": 380,
+   "allergens": [
+    "dairy"
+   ],
+   "course": "drink",
+   "temp": "cold",
+   "coffee": true,
+   "available": true
+  },
+  {
+   "id": "lemon-green-tea",
+   "name": "Lemon Green Tea",
+   "category": "Teas & Coolers",
+   "price": 239,
+   "prepTime": 4,
+   "image": "https://assets.mixkit.co/videos/9267/9267-thumb-720-0.jpg",
+   "video": "https://assets.mixkit.co/videos/9267/9267-720.mp4",
+   "description": "Light green tea brewed with a squeeze of lemon.",
+   "tags": [],
+   "badges": [],
+   "diet": {
+    "veg": true,
+    "egg": false,
+    "vegan": true,
+    "gf": false
+   },
+   "spice": 0,
+   "kcal": 5,
+   "course": "drink",
+   "temp": "hot",
+   "coffee": false,
+   "available": true
+  },
+  {
+   "id": "peach-iced-tea",
+   "name": "Peach Iced Tea",
+   "category": "Teas & Coolers",
+   "price": 229,
+   "prepTime": 4,
+   "image": "https://images.unsplash.com/photo-1556679343-c7306c1976bc?w=900&q=70&auto=format&fit=crop",
+   "description": "House-brewed black tea with ripe peach, over ice.",
+   "tags": [],
+   "badges": [],
+   "diet": {
+    "veg": true,
+    "egg": false,
+    "vegan": true,
+    "gf": false
+   },
+   "spice": 0,
+   "kcal": 90,
+   "course": "drink",
+   "temp": "cold",
+   "coffee": false,
+   "available": true
+  },
+  {
+   "id": "passion-mojito",
+   "name": "Passion Mojito",
+   "category": "Teas & Coolers",
+   "price": 259,
+   "prepTime": 5,
+   "image": "https://images.unsplash.com/photo-1775717427643-2b0fc39a81f8?w=900&q=70&auto=format&fit=crop",
+   "description": "Passion fruit, lime and mint with soda (non-alcoholic).",
+   "tags": [],
+   "badges": [],
+   "diet": {
+    "veg": true,
+    "egg": false,
+    "vegan": true,
+    "gf": false
+   },
+   "spice": 0,
+   "kcal": 120,
+   "course": "drink",
+   "temp": "cold",
+   "coffee": false,
+   "available": true
+  },
+  {
+   "id": "scrambled-eggs-toast",
+   "name": "Scrambled Eggs Toast",
+   "category": "All-day Breakfast",
+   "price": 339,
+   "prepTime": 10,
+   "image": "https://assets.mixkit.co/videos/42909/42909-thumb-720-0.jpg",
+   "video": "https://assets.mixkit.co/videos/42909/42909-720.mp4",
+   "description": "Soft, buttery scrambled eggs on toasted bread.",
+   "tags": [
+    "most-loved"
+   ],
+   "badges": [],
+   "diet": {
+    "veg": false,
+    "egg": true,
+    "vegan": false,
+    "gf": false
+   },
+   "spice": 0,
+   "kcal": 420,
+   "allergens": [
+    "egg",
+    "dairy",
+    "gluten"
+   ],
+   "course": "meal",
+   "coffee": false,
+   "available": true
+  },
+  {
+   "id": "omelette-plate",
+   "name": "Big Omelette Plate",
+   "category": "All-day Breakfast",
+   "price": 369,
+   "prepTime": 12,
+   "image": "https://assets.mixkit.co/videos/42910/42910-thumb-720-0.jpg",
+   "video": "https://assets.mixkit.co/videos/42910/42910-720.mp4",
+   "description": "A fluffy three-egg omelette with toast and a side salad.",
+   "tags": [],
+   "badges": [
+    "signature"
+   ],
+   "diet": {
+    "veg": false,
+    "egg": true,
+    "vegan": false,
+    "gf": false
+   },
+   "spice": 0,
+   "kcal": 480,
+   "allergens": [
+    "egg",
+    "dairy",
+    "gluten"
+   ],
+   "course": "meal",
+   "coffee": false,
+   "available": true
+  },
+  {
+   "id": "pesto-mushroom-toast",
+   "name": "Pesto Mushroom Toast",
+   "category": "All-day Breakfast",
+   "price": 329,
+   "prepTime": 10,
+   "image": "https://images.unsplash.com/photo-1760731755984-442f86f9b744?w=900&q=70&auto=format&fit=crop",
+   "description": "Open sourdough toast with garlicky mushrooms and basil pesto.",
+   "tags": [],
+   "badges": [],
+   "diet": {
+    "veg": true,
+    "egg": false,
+    "vegan": false,
+    "gf": false
+   },
+   "spice": 0,
+   "kcal": 390,
+   "allergens": [
+    "gluten",
+    "nuts"
+   ],
+   "course": "meal",
+   "coffee": false,
+   "available": true
+  },
+  {
+   "id": "chicken-pesto-sandwich",
+   "name": "Chicken Pesto Sandwich",
+   "category": "Sandwiches",
+   "price": 379,
+   "prepTime": 12,
+   "image": "https://assets.mixkit.co/videos/3069/3069-thumb-720-0.jpg",
+   "video": "https://assets.mixkit.co/videos/3069/3069-720.mp4",
+   "description": "Grilled chicken, basil pesto, lettuce and tomato on toasted bread.",
+   "tags": [
+    "most-loved"
+   ],
+   "badges": [
+    "bestseller"
+   ],
+   "diet": {
+    "veg": false,
+    "egg": false,
+    "vegan": false,
+    "gf": false
+   },
+   "spice": 0,
+   "kcal": 540,
+   "allergens": [
+    "dairy",
+    "gluten",
+    "nuts"
+   ],
+   "course": "meal",
+   "coffee": false,
+   "available": true
+  },
+  {
+   "id": "veg-club-sandwich",
+   "name": "Veg Club Sandwich",
+   "category": "Sandwiches",
+   "price": 319,
+   "prepTime": 10,
+   "image": "https://assets.mixkit.co/videos/26094/26094-thumb-720-0.jpg",
+   "video": "https://assets.mixkit.co/videos/26094/26094-720.mp4",
+   "description": "Triple-decker with veggies, cheese, lettuce and tomato.",
+   "tags": [],
+   "badges": [],
+   "diet": {
+    "veg": true,
+    "egg": false,
+    "vegan": false,
+    "gf": false
+   },
+   "spice": 0,
+   "kcal": 460,
+   "allergens": [
+    "dairy",
+    "gluten"
+   ],
+   "course": "meal",
+   "coffee": false,
+   "available": true
+  },
+  {
+   "id": "homestyle-paneer-sandwich",
+   "name": "Homestyle Paneer Sandwich",
+   "category": "Sandwiches",
+   "price": 329,
+   "prepTime": 12,
+   "image": "https://images.unsplash.com/photo-1496113269490-84ffe1a410cb?w=900&q=70&auto=format&fit=crop",
+   "description": "Masala paneer, onions and capsicum, toasted crisp.",
+   "tags": [],
+   "badges": [],
+   "diet": {
+    "veg": true,
+    "egg": false,
+    "vegan": false,
+    "gf": false
+   },
+   "spice": 1,
+   "kcal": 490,
+   "allergens": [
+    "dairy",
+    "gluten"
+   ],
+   "course": "meal",
+   "coffee": false,
+   "available": true
+  },
+  {
+   "id": "alfredo-pasta",
+   "name": "Alfredo Pasta",
+   "category": "Pasta & Bites",
+   "price": 339,
+   "prepTime": 14,
+   "image": "https://assets.mixkit.co/videos/2436/2436-thumb-720-0.jpg",
+   "video": "https://assets.mixkit.co/videos/2436/2436-720.mp4",
+   "description": "Creamy parmesan white sauce with herbs.",
+   "tags": [
+    "most-loved"
+   ],
+   "badges": [],
+   "diet": {
+    "veg": true,
+    "egg": false,
+    "vegan": false,
+    "gf": false
+   },
+   "spice": 0,
+   "kcal": 620,
+   "allergens": [
+    "gluten",
+    "dairy"
+   ],
+   "course": "meal",
+   "coffee": false,
+   "available": true
+  },
+  {
+   "id": "aglio-e-olio",
+   "name": "Aglio e Olio Pasta",
+   "category": "Pasta & Bites",
+   "price": 339,
+   "prepTime": 14,
+   "image": "https://assets.mixkit.co/videos/24463/24463-thumb-720-0.jpg",
+   "video": "https://assets.mixkit.co/videos/24463/24463-720.mp4",
+   "description": "Spaghetti tossed with garlic, olive oil and chilli flakes.",
+   "tags": [],
+   "badges": [],
+   "diet": {
+    "veg": true,
+    "egg": false,
+    "vegan": false,
+    "gf": false
+   },
+   "spice": 1,
+   "kcal": 480,
+   "allergens": [
+    "gluten"
+   ],
+   "course": "meal",
+   "coffee": false,
+   "available": true
+  },
+  {
+   "id": "peri-peri-fries",
+   "name": "Peri-Peri Fries",
+   "category": "Pasta & Bites",
+   "price": 359,
+   "prepTime": 10,
+   "image": "https://assets.mixkit.co/videos/3539/3539-thumb-720-0.jpg",
+   "video": "https://assets.mixkit.co/videos/3539/3539-720.mp4",
+   "description": "Crispy fries tossed in fiery peri-peri seasoning.",
+   "tags": [
+    "most-loved"
+   ],
+   "badges": [
+    "spicy"
+   ],
+   "diet": {
+    "veg": true,
+    "egg": false,
+    "vegan": true,
+    "gf": false
+   },
+   "spice": 2,
+   "kcal": 480,
+   "course": "snack",
+   "coffee": false,
+   "available": true
+  },
+  {
+   "id": "salted-fries",
+   "name": "Salted Fries",
+   "category": "Pasta & Bites",
+   "price": 339,
+   "prepTime": 8,
+   "image": "https://assets.mixkit.co/videos/3549/3549-thumb-720-0.jpg",
+   "video": "https://assets.mixkit.co/videos/3549/3549-720.mp4",
+   "description": "Classic, crisp and lightly salted.",
+   "tags": [],
+   "badges": [],
+   "diet": {
+    "veg": true,
+    "egg": false,
+    "vegan": true,
+    "gf": false
+   },
+   "spice": 0,
+   "kcal": 420,
+   "course": "snack",
+   "coffee": false,
+   "available": true
+  }
+ ]
+}

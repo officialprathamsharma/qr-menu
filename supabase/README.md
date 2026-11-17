@@ -30,14 +30,27 @@ Videos use the most bandwidth. Ask owners for 720p clips under about 15 MB.
 1. **Authentication → Users → Add user**: enter the owner's email and a temporary password (or send an invite).
 2. Edit and run [`add-restaurant.sql`](add-restaurant.sql) with the restaurant's slug and the owner's email.
 3. The owner gets an invite email. Its link opens the dashboard, where they choose a password. They then click
-   **Start from sample** (their own `data/<slug>.json` if it exists, otherwise the Arabico sample) or **Blank menu**,
+   **Start from sample** (their own `data/<slug>.json` if it exists, otherwise the Little Bean Café sample in `data/demo.json`), **Import a menu** (Excel, CSV or a Zomato link) or **Blank menu**,
    then **Save & publish**.
 4. Each table's QR code: `https://<site>/?r=<slug>&t=<table number>`.
 
 ## Demo account
 
-The `demo` store (`?r=demo`) belongs to the project owner's login and is for showing the dashboard to prospects.
-Edits there never affect a real restaurant's menu.
+The `demo` store (`?r=demo`, "Little Bean Café", 21 items) belongs to the project owner's login and is for showing
+the dashboard to prospects. Edits there never affect a real restaurant's menu.
+
+## Import from a link (Edge Function)
+
+`functions/import-menu/index.ts` powers the dashboard's **Import → From a listing link**. It is deployed as the
+`import-menu` Edge Function (Supabase dashboard → Edge Functions → Deploy a new function → Via editor, then paste the
+file). It only fetches Zomato, EazyDiner and Swiggy Dineout pages.
+
+- **Zomato**: the full item list (name, category, price, description, veg/non-veg) for restaurants with online ordering.
+  No photos.
+- **EazyDiner / Dineout**: these sites only publish photos of the printed menu, so the dashboard shows those photos for
+  the owner to copy into the spreadsheet template.
+- Only import a restaurant's listing with that restaurant's permission, and expect these sites to change their pages
+  or block requests now and then; the spreadsheet import always works.
 
 ## How data flows
 

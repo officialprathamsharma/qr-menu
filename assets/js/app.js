@@ -36,9 +36,7 @@ const state = {
   query: '',
   chips: new Set(), // popular | veg | drinks | food
   sheetFilters: {}, // from the filter sheet
-  expanded: new Set(),
   autoplay: pref.get('autoplay') == null ? !(prefersReduced || slowNetwork) : pref.get('autoplay') === '1',
-  soundOn: false,
   active: null,
   manual: null,
   userPaused: new WeakSet(),
@@ -51,13 +49,8 @@ const svg = (p) =>
   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
 const icons = {
   clock: svg('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
-  play: svg('<path d="M7 4.5v15l12.5-7.5z" fill="currentColor" stroke="none"/>'),
-  pause: svg('<path d="M8 5v14M16 5v14" stroke-width="3"/>'),
-  mute: svg('<path d="M11 5 6 9H3v6h3l5 4z"/><path d="m22 9-6 6M16 9l6 6"/>'),
-  sound: svg('<path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/>'),
   close: svg('<path d="M6 6l12 12M18 6 6 18"/>'),
   arrow: svg('<path d="M5 12h14M13 6l6 6-6 6"/>'),
-  chevron: svg('<path d="m6 9 6 6 6-6"/>'),
   dish: svg('<path d="M3 17h18M5 17a7 7 0 0 1 14 0M12 7V5M10 5h4"/>'),
   flame: svg('<path d="M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.5 1.5-3.8 2.5-5 .3 1.6 1 2.6 2 3 0-3-1-5.5.5-8z" fill="currentColor" stroke="none"/>'),
   bolt: svg('<path d="M13 3 5 13h6l-1 8 8-10h-6z"/>'),
@@ -65,6 +58,7 @@ const icons = {
   sliders: svg('<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>'),
   snow: svg('<path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9"/>'),
   cup: svg('<path d="M5 9h11v5a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5zM16 10h1.5a2.5 2.5 0 0 1 0 5H16M8 3v3M12 3v3"/>'),
+  list: svg('<path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01" stroke-width="2.2"/>'),
   star: svg('<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" fill="currentColor" stroke="none"/>'),
 };
 
@@ -192,6 +186,7 @@ function renderMenu() {
       </div>
     </div>
     <main id="feed" class="feed" aria-live="polite"></main>
+    <button type="button" class="menu-fab" id="menu-fab" aria-haspopup="dialog" hidden>${icons.list}<span>Menu</span></button>
     <footer class="foot">
       ${data.footerNote ? `${esc(data.footerNote)}<br>` : ''}
       Powered by <strong>QR Menu</strong>
@@ -223,13 +218,19 @@ function renderMenu() {
     if (state.chips.has(id)) state.chips.delete(id);
     else {
       state.chips.add(id);
-      if (id === 'drinks') state.chips.delete('food');
+      // Veg means vegetarian FOOD, so it can't be combined with Drinks.
+      if (id === 'drinks') { state.chips.delete('food'); state.chips.delete('veg'); }
       if (id === 'food') state.chips.delete('drinks');
+      if (id === 'veg') state.chips.delete('drinks');
     }
     syncChips();
     renderFeed(true);
   });
   $('#open-filters').onclick = openFilters;
+  $('#menu-fab').onclick = openCategories;
+  const toolbar = $('.toolbar');
+  new ResizeObserver(() => document.documentElement.style.setProperty('--toolbar-h', `${toolbar.offsetHeight}px`)).observe(toolbar);
+  addEventListener('scroll', onScrollFab, { passive: true });
 
   $('#feed').addEventListener('click', onFeedClick);
   bindSheet();
@@ -253,7 +254,7 @@ function currentFilters() {
   const parsed = parseQuery(state.query);
   const chipF = {};
   if (state.chips.has('popular')) chipF.popular = true;
-  if (state.chips.has('veg')) chipF.veg = true;
+  if (state.chips.has('veg')) { chipF.veg = true; chipF.group = 'food'; }
   if (state.chips.has('drinks')) chipF.group = 'drinks';
   if (state.chips.has('food')) chipF.group = 'food';
   return { parsed, filters: mergeFilters(chipF, state.sheetFilters, parsed.filters) };
@@ -267,6 +268,7 @@ function renderFeed(resetScroll = false) {
   if (hasFilters(filters, parsed.terms)) renderResults(feed, parsed, filters);
   else renderBrowse(feed);
   observeVideos(feed);
+  onScrollFab();
   if (resetScroll) {
     const top = $('.masthead').offsetHeight;
     if (scrollY > top) scrollTo({ top, behavior: 'auto' });
@@ -312,7 +314,7 @@ function renderBrowse(feed) {
 
   const groups = data.groups
     .map((g) => {
-      const cats = data.categories.filter((c) => c.group === g.id);
+      const cats = data.categories.filter((c) => c.group === g.id && countIn(c));
       if (!cats.length) return '';
       return `<section class="group" aria-labelledby="g-${esc(g.id)}">
         <h2 class="group-title" id="g-${esc(g.id)}">${esc(g.label)}</h2>
@@ -327,54 +329,55 @@ function renderBrowse(feed) {
 const dishesIn = (c) => data.dishes.filter((d) => d.category === c.match);
 const countIn = (c) => dishesIn(c).length;
 
+// Every category is open. Its header sticks under the search bar while you scroll through it and is
+// pushed away by the next one, so you always know which category you're in and where it ends.
 function categoryBlock(c) {
   const list = dishesIn(c);
-  const open = state.expanded.has(c.id);
-  const peek = list.slice(0, 3).map((d) => `<img src="${esc(d.image)}" alt="" loading="lazy">`).join('');
   return `
-    <div class="cat" id="cat-${esc(c.id)}">
-      <button type="button" class="cat-head" aria-expanded="${open}" aria-controls="body-${esc(c.id)}" data-cat="${esc(c.id)}">
-        <span class="cat-name">
-          <span class="cat-title">${esc(label(c))}</span>
-          <span class="cat-meta">${list.length} items${c.eyebrow ? ` · ${esc(c.eyebrow)}` : ''}</span>
-        </span>
-        <span class="peek" aria-hidden="true">${peek}</span>
-        <span class="chev">${icons.chevron}</span>
-      </button>
-      <div class="cat-body" id="body-${esc(c.id)}" ${open ? '' : 'hidden'}>${open ? list.map(rowCard).join('') : ''}</div>
-    </div>`;
-}
-
-function toggleCategory(id, force) {
-  const c = data.categories.find((x) => x.id === id);
-  const block = $(`#cat-${CSS.escape(id)}`);
-  if (!c || !block) return;
-  const head = $('.cat-head', block);
-  const body = $('.cat-body', block);
-  const open = force ?? head.getAttribute('aria-expanded') !== 'true';
-  head.setAttribute('aria-expanded', open);
-  body.hidden = !open;
-  if (open) {
-    state.expanded.add(id);
-    if (!body.childElementCount) {
-      body.innerHTML = dishesIn(c).map(rowCard).join('');
-      observeVideos(body);
-    }
-  } else {
-    state.expanded.delete(id);
-    $$('video', body).forEach((v) => v.pause());
-  }
+    <section class="cat" id="cat-${esc(c.id)}" aria-labelledby="ct-${esc(c.id)}">
+      <header class="cat-head">
+        <h3 class="cat-title" id="ct-${esc(c.id)}">${esc(label(c))}</h3>
+        <span class="cat-meta">${list.length} ${list.length === 1 ? 'item' : 'items'}</span>
+      </header>
+      ${c.eyebrow ? `<p class="cat-sub">${esc(c.eyebrow)}</p>` : ''}
+      <div class="cat-body">${list.map(rowCard).join('')}</div>
+    </section>`;
 }
 
 function jumpToCategory(hashId, smooth = true) {
   if (!hashId?.startsWith('cat-')) return;
   const id = hashId.slice(4);
-  if (!$(`#cat-${CSS.escape(id)}`)) {
-    // In results mode — go back to browsing first.
-    clearAll();
-  }
-  toggleCategory(id, true);
+  if (!$(`#cat-${CSS.escape(id)}`)) clearAll(); // in results mode: go back to browsing first
   $(`#cat-${CSS.escape(id)}`)?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'start' });
+}
+
+/* Floating "Menu" button: appears once you scroll past the category overview, opens a category list. */
+let fabTick = false;
+function onScrollFab() {
+  if (fabTick) return;
+  fabTick = true;
+  requestAnimationFrame(() => {
+    fabTick = false;
+    const fab = $('#menu-fab');
+    const ov = $('.overview');
+    const show = Boolean(ov) && ov.getBoundingClientRect().bottom < 0 && !state.sheetOpen;
+    fab.hidden = !ov;
+    fab.classList.toggle('show', show);
+  });
+}
+
+function openCategories() {
+  const toolbarH = $('.toolbar').offsetHeight;
+  let current = null;
+  for (const el of $$('.cat')) if (el.getBoundingClientRect().top <= toolbarH + 2) current = el.id;
+  const html = data.groups.map((g) => {
+    const cats = data.categories.filter((c) => c.group === g.id && countIn(c));
+    if (!cats.length) return '';
+    return `<h3 class="catlist-group">${esc(g.label)}</h3>
+      <ul class="catlist">${cats.map((c) => `<li><button type="button" data-goto="cat-${esc(c.id)}"${current === `cat-${c.id}` ? ' aria-current="true"' : ''}>
+        <span>${esc(label(c))}</span><small>${countIn(c)}</small></button></li>`).join('')}</ul>`;
+  }).join('');
+  openSheet(`<div class="sheet-body catsheet"><h2 id="sheet-title">Menu</h2>${html}</div>`, { kind: 'cats' });
 }
 
 function renderResults(feed, parsed, filters) {
@@ -481,15 +484,34 @@ function pills(d, { kcal = false } = {}) {
   return out.join('');
 }
 
-function mediaHtml(d, cls, eager = false) {
+/* Pick a file size that fits the slot, for the stock hosts we use (Unsplash photos, Mixkit clips).
+   Owner uploads are already resized in the dashboard. A 108px row thumbnail needs ~320px, not 900px,
+   and a 360p clip is ~1 MB instead of ~6 MB at 720p, so cards show up fast on mobile data. */
+function sizedImage(url, w) {
+  if (!url) return url;
+  if (url.includes('images.unsplash.com/')) return /[?&]w=\d+/.test(url) ? url.replace(/([?&])w=\d+/, `$1w=${w}`) : `${url}${url.includes('?') ? '&' : '?'}w=${w}`;
+  if (url.includes('assets.mixkit.co/') && w <= 400) return url.replace('-thumb-720-', '-thumb-360-');
+  return url;
+}
+function sizedVideo(url, small) {
+  return small && /assets\.mixkit\.co\/.+-720\.mp4$/.test(url) ? url.replace(/-720\.mp4$/, '-360.mp4') : url;
+}
+// Photos fade in over a shimmer instead of popping in on a blank box.
+const imgLoaded = `onload="this.classList.add('ld')" onerror="this.classList.add('ld')"`;
+
+function mediaHtml(d, cls, { eager = false, w = 320 } = {}) {
   const hasVid = d.video && !failedVideos.has(d.video);
   const focus = esc(d.focus || '50% 50%');
+  if (!d.image && !hasVid) {
+    // No photo yet (e.g. just imported): a quiet monogram instead of an empty box.
+    return `<div class="${cls} no-photo" aria-hidden="true"><span>${esc(d.name.trim()[0] || '•')}</span>
+      ${soldOut(d) ? '<span class="soldout-tag">Sold out</span>' : ''}</div>`;
+  }
   return `
     <div class="${cls}${hasVid ? ' has-video' : ''}">
-      <img src="${esc(d.image)}" alt="" loading="${eager ? 'eager' : 'lazy'}" decoding="async" style="object-position:${focus}">
+      ${d.image ? `<img src="${esc(sizedImage(d.image, w))}" alt="" loading="${eager ? 'eager' : 'lazy'}"${eager ? ' fetchpriority="high"' : ''} decoding="async" ${imgLoaded} style="object-position:${focus}">` : ''}
       ${hasVid ? `
-        <video muted loop playsinline preload="none" data-src="${esc(d.video)}" aria-hidden="true" tabindex="-1" style="object-position:${focus}"></video>
-        <button type="button" class="vplay glass" aria-label="Play video of ${esc(d.name)}" aria-pressed="false">${icons.play}</button>
+        <video muted loop playsinline preload="none" data-src="${esc(sizedVideo(d.video, true))}" aria-hidden="true" tabindex="-1" style="object-position:${focus}"></video>
         <span class="vspin" aria-hidden="true"></span>` : ''}
       ${soldOut(d) ? '<span class="soldout-tag">Sold out</span>' : ''}
     </div>`;
@@ -498,7 +520,7 @@ function mediaHtml(d, cls, eager = false) {
 function featureCard(d, i) {
   return `
     <article class="feature${soldOut(d) ? ' is-soldout' : ''}" data-id="${esc(d.id)}">
-      ${mediaHtml(d, 'media', i < 2)}
+      ${mediaHtml(d, 'media', { eager: i < 2, w: 640 })}
       <div class="feature-body">
         ${d.badges.length ? `<div class="badges-inline">${d.badges.slice(0, 2).map(badgeHtml).join('')}</div>` : ''}
         <div class="title-row">
@@ -512,32 +534,21 @@ function featureCard(d, i) {
 
 function rowCard(d) {
   const badge = d.badges[0];
+  const media = d.image || d.video;
   return `
-    <article class="row${soldOut(d) ? ' is-soldout' : ''}" data-id="${esc(d.id)}">
+    <article class="row${soldOut(d) ? ' is-soldout' : ''}${media ? '' : ' no-media'}" data-id="${esc(d.id)}">
       <div class="row-text">
         ${badge ? `<p class="row-badge">${esc(badgeLabel(badge))}</p>` : ''}
         <h3>${vegMark(d)}<button type="button" class="name-btn">${esc(d.name)}</button></h3>
         <p class="desc">${esc(d.description)}</p>
         <div class="row-foot"><span class="price">${esc(fmtPrice(d.price))}</span>${pills(d)}</div>
       </div>
-      ${mediaHtml(d, 'row-media')}
+      ${media ? mediaHtml(d, 'row-media') : ''}
     </article>`;
 }
 
 function onFeedClick(e) {
   const t = e.target;
-  const vplay = t.closest('.vplay');
-  const media = t.closest('.has-video');
-  if (vplay || media) {
-    const v = $('video', (vplay || media).closest('.has-video'));
-    if (v) {
-      e.preventDefault();
-      togglePlay(v);
-      return;
-    }
-  }
-  const cat = t.closest('[data-cat]');
-  if (cat) return toggleCategory(cat.dataset.cat);
   const jump = t.closest('[data-jump]');
   if (jump) {
     e.preventDefault();
@@ -560,12 +571,21 @@ function onFeedClick(e) {
    Video engine
    - Sources load ~300px before a video scrolls in.
    - Autoplay (if on): the topmost video ≥60% visible plays, muted; all others pause.
-   - A TAP (click) on the media toggles play/pause. No touchstart, so scrolling never starts a video.
-   - Every video has a visible play/pause button (WCAG 2.2.2) and autoplay can be switched off.
+   - No video buttons: clips are silent loops. Tapping a card opens the dish. Scrolling never starts a
+     video (no touchstart). Guests can switch autoplay off in Filters; it starts off for reduce-motion/data saver.
+   - Nothing video-related downloads until the page's photos have loaded, so photos appear first on slow data.
    - If a video errors or hasn't started after 8 s, it is dropped and the photo stays.
    ========================================================== */
 let playIO;
 let loadIO;
+let pageLoaded = document.readyState === 'complete';
+const waitingForLoad = new Set();
+addEventListener('load', () => {
+  pageLoaded = true;
+  waitingForLoad.forEach(prepare);
+  waitingForLoad.clear();
+  pickActive();
+});
 const ratios = new Map();
 const timers = new WeakMap();
 
@@ -599,21 +619,14 @@ function observeVideos(root) {
     if (v.dataset.bound) continue;
     v.dataset.bound = '1';
     const media = v.parentElement;
-    const btn = $('.vplay', media);
     v.addEventListener('playing', () => {
       clearTimeout(timers.get(v));
       media.classList.add('playing');
       media.classList.remove('buffering');
-      btn?.setAttribute('aria-pressed', 'true');
-      btn?.setAttribute('aria-label', btn.getAttribute('aria-label').replace(/^Play/, 'Pause'));
-      if (btn) btn.innerHTML = icons.pause;
     });
     v.addEventListener('pause', () => {
       clearTimeout(timers.get(v));
       media.classList.remove('playing', 'buffering');
-      btn?.setAttribute('aria-pressed', 'false');
-      btn?.setAttribute('aria-label', btn.getAttribute('aria-label').replace(/^Pause/, 'Play'));
-      if (btn) btn.innerHTML = icons.play;
     });
     v.addEventListener('waiting', () => media.classList.add('buffering'));
     v.addEventListener('error', () => failVideo(v));
@@ -623,6 +636,7 @@ function observeVideos(root) {
 }
 
 function prepare(v) {
+  if (!pageLoaded) { waitingForLoad.add(v); return; }
   if (!v.getAttribute('src') && v.dataset.src) {
     v.src = v.dataset.src;
     v.preload = 'metadata';
@@ -639,7 +653,6 @@ function failVideo(v) {
   if (state.manual === v) state.manual = null;
   v.removeAttribute('src');
   v.remove();
-  $('.vplay', media)?.remove();
   $('.vspin', media)?.remove();
   media?.classList.remove('has-video', 'playing', 'buffering');
   media?.classList.add('video-failed');
@@ -647,7 +660,7 @@ function failVideo(v) {
 }
 
 function pickActive() {
-  if (state.sheetOpen || document.hidden) return;
+  if (state.sheetOpen || document.hidden || !pageLoaded) return;
   if (state.manual && (ratios.get(state.manual) || 0) >= 0.3) return play(state.manual);
   state.manual = null;
   if (!state.autoplay) return play(null);
@@ -660,19 +673,6 @@ function pickActive() {
     return ra.top - rb.top || ra.left - rb.left;
   });
   play(candidates[0] || null);
-}
-
-function togglePlay(v) {
-  if (state.active === v && !v.paused) {
-    state.userPaused.add(v);
-    state.manual = null;
-    v.pause();
-    state.active = null;
-  } else {
-    state.userPaused.delete(v);
-    state.manual = v;
-    play(v);
-  }
 }
 
 function play(v) {
@@ -708,6 +708,7 @@ function openSheet(html, { replace = false, kind = 'dish' } = {}) {
   scroll.scrollTop = 0;
   sheet.classList.add('open');
   sheet.setAttribute('aria-hidden', 'false');
+  $('#menu-fab')?.classList.remove('show');
   document.documentElement.classList.add('lock');
   if (replace) history.replaceState({ sheet: kind }, '');
   else if (!history.state?.sheet) history.pushState({ sheet: kind }, '');
@@ -731,6 +732,7 @@ function closeSheet(fromPop = false) {
   if (!fromPop && history.state?.sheet) history.back();
   if (sheet.dataset.kind === 'filters') renderFeed(true);
   setTimeout(pickActive, 60);
+  onScrollFab();
 }
 
 function bindSheet() {
@@ -742,8 +744,12 @@ function bindSheet() {
     if (e.target.closest('[data-close]')) return closeSheet();
     const pair = e.target.closest('[data-open]');
     if (pair) return openDish(pair.dataset.open, true);
-    if (e.target.closest('.sheet-sound')) return toggleSound();
-    if (e.target.closest('.sheet-media .vplay, .sheet-media.has-video')) return toggleSheetVideo();
+    const go = e.target.closest('[data-goto]');
+    if (go) {
+      closeSheet();
+      setTimeout(() => jumpToCategory(go.dataset.goto), 60);
+      return;
+    }
     onFilterClick(e);
   });
   sheet.addEventListener('input', onFilterInput);
@@ -780,49 +786,19 @@ function openDish(id, replace = false) {
   const v = $('#sheet .sheet-scroll video');
   if (v) {
     const media = v.parentElement;
-    v.addEventListener('playing', () => { media.classList.add('playing'); media.classList.remove('buffering'); syncSheetVideoBtn(); });
-    v.addEventListener('pause', syncSheetVideoBtn);
+    v.addEventListener('playing', () => { media.classList.add('playing'); media.classList.remove('buffering'); });
     v.addEventListener('waiting', () => media.classList.add('buffering'));
     v.addEventListener('error', () => {
       failedVideos.add(d.video);
       v.remove();
-      $$('.vplay, .sheet-sound, .vspin', media).forEach((x) => x.remove());
+      $('.vspin', media)?.remove();
       media.classList.remove('has-video', 'playing', 'buffering');
     });
-    v.muted = !state.soundOn;
+    v.muted = true;
     if (state.autoplay) {
       media.classList.add('buffering');
-      v.play()?.catch(() => { v.muted = true; state.soundOn = false; syncSheetVideoBtn(); v.play()?.catch(() => media.classList.remove('buffering')); });
+      v.play()?.catch(() => media.classList.remove('buffering'));
     }
-  }
-}
-
-function toggleSheetVideo() {
-  const v = $('#sheet .sheet-scroll video');
-  if (!v) return;
-  if (v.paused) v.play()?.catch(() => {});
-  else v.pause();
-}
-function toggleSound() {
-  const v = $('#sheet .sheet-scroll video');
-  state.soundOn = !state.soundOn;
-  if (v) { v.muted = !state.soundOn; if (v.paused) v.play()?.catch(() => {}); }
-  syncSheetVideoBtn();
-}
-function syncSheetVideoBtn() {
-  const v = $('#sheet .sheet-scroll video');
-  const btn = $('#sheet .sheet-media .vplay');
-  const snd = $('#sheet .sheet-sound');
-  if (btn && v) {
-    btn.innerHTML = v.paused ? icons.play : icons.pause;
-    btn.setAttribute('aria-pressed', String(!v.paused));
-    btn.setAttribute('aria-label', v.paused ? 'Play video' : 'Pause video');
-    v.parentElement.classList.toggle('playing', !v.paused);
-  }
-  if (snd) {
-    snd.innerHTML = state.soundOn ? icons.sound : icons.mute;
-    snd.setAttribute('aria-label', state.soundOn ? 'Mute' : 'Turn sound on');
-    snd.setAttribute('aria-pressed', String(state.soundOn));
   }
 }
 
@@ -838,7 +814,7 @@ function dishHtml(d) {
   const pairings = (d.pairings || []).map((p) => {
     const ref = p.dishId && byId(p.dishId);
     const inner = `
-      ${ref ? `<img src="${esc(ref.image)}" alt="" loading="lazy">` : ''}
+      ${ref ? `<img src="${esc(sizedImage(ref.image, 160))}" alt="" loading="lazy">` : ''}
       <span class="pair-text">
         <span class="pair-kind">${esc(p.kind || 'Pairing')}</span>
         <span class="pair-name">${esc(ref ? ref.name : p.name)}</span>
@@ -850,15 +826,12 @@ function dishHtml(d) {
 
   const hasVid = d.video && !failedVideos.has(d.video);
   return `
-    <div class="sheet-media${hasVid ? ' has-video' : ''}">
-      <img src="${esc(d.image)}" alt="${esc(d.name)}" style="object-position:${esc(d.focus || '50% 50%')}">
+    <div class="sheet-media${hasVid ? ' has-video' : ''}${!d.image && !hasVid ? ' no-photo' : ''}">
+      ${!d.image && !hasVid ? `<span aria-hidden="true">${esc(d.name.trim()[0] || '•')}</span>` : ''}
+      ${d.image ? `<img src="${esc(sizedImage(d.image, 900))}" alt="${esc(d.name)}" ${imgLoaded} style="object-position:${esc(d.focus || '50% 50%')}">` : ''}
       ${hasVid ? `
         <video src="${esc(d.video)}" muted loop playsinline preload="metadata" aria-hidden="true" tabindex="-1" style="object-position:${esc(d.focus || '50% 50%')}"></video>
-        <span class="vspin" aria-hidden="true"></span>
-        <div class="sheet-vctrl">
-          <button type="button" class="vplay glass" aria-label="Play video" aria-pressed="false">${icons.play}</button>
-          <button type="button" class="sheet-sound glass" aria-label="Turn sound on" aria-pressed="false">${state.soundOn ? icons.sound : icons.mute}</button>
-        </div>` : ''}
+        <span class="vspin" aria-hidden="true"></span>` : ''}
       <div class="badges">${d.badges.map(badgeHtml).join('')}</div>
       ${soldOut(d) ? '<span class="soldout-tag">Sold out today</span>' : ''}
     </div>
