@@ -31,7 +31,8 @@ A desktop browser shows the "scan with your phone" screen; click **Preview on th
 - **Categories are collapsible headings, one open at a time**: opening a category closes the previous one. The open
   heading sticks under the search bar while you scroll its items. Once you scroll past the overview, a floating
   **Menu** button opens a list of categories to jump between.
-- **Items with a video show as square cards**, two per row, above the compact photo rows (in categories and search results).
+- **Items with a video show as full-width cards** (like the featured cards) with a 16:9 video, about twice a photo row's
+  height, in their normal menu position (in categories and search results).
 - **Quick filters**: Popular · Veg (vegetarian *food*; drinks are excluded) · Drinks · Food. The ⚙ button in the search bar opens the full filters:
   Vegetarian / Vegan / No egg / Non-veg; leave out Dairy / Gluten / Nuts / Coffee; Hot / Cold;
   ready in ≤10 min, spicy or not, light (≤400 kcal); max price; and an autoplay on/off switch.

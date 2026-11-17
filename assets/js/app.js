@@ -570,21 +570,23 @@ function featureCard(d, i) {
     </article>`;
 }
 
-// Items with a video show as square cards, two per row, ahead of the compact photo rows.
+// Items with a video show as full-width cards (like the featured cards at the top) with a 16:9 video,
+// about twice the height of a photo row. Everything stays in menu order.
 const hasVideo = (d) => Boolean(d.video) && !failedVideos.has(d.video);
-function listHtml(list) {
-  const vids = list.filter(hasVideo);
-  const rest = list.filter((d) => !hasVideo(d));
-  return `${vids.length ? `<div class="squares">${vids.map(squareCard).join('')}</div>` : ''}${rest.map(rowCard).join('')}`;
-}
+const listHtml = (list) => list.map((d) => (hasVideo(d) ? wideCard(d) : rowCard(d))).join('');
 
-function squareCard(d) {
+function wideCard(d) {
   return `
-    <article class="square${soldOut(d) ? ' is-soldout' : ''}" data-id="${esc(d.id)}">
-      ${mediaHtml(d, 'media sq-media', { w: 480 })}
-      <div class="sq-body">
-        <h3>${vegMark(d)}<button type="button" class="name-btn">${esc(d.name)}</button></h3>
-        <div class="sq-foot"><span class="price">${esc(fmtPrice(d.price))}</span>${d.prepTime ? `<span class="pill">${icons.clock}${d.prepTime} min</span>` : ''}</div>
+    <article class="feature wide${soldOut(d) ? ' is-soldout' : ''}" data-id="${esc(d.id)}">
+      ${mediaHtml(d, 'media', { w: 900 })}
+      <div class="feature-body">
+        ${d.badges.length ? `<div class="badges-inline">${d.badges.slice(0, 2).map(badgeHtml).join('')}</div>` : ''}
+        <div class="title-row">
+          <h3>${vegMark(d)}<button type="button" class="name-btn">${esc(d.name)}</button></h3>
+          <span class="price">${esc(fmtPrice(d.price))}</span>
+        </div>
+        ${d.description ? `<p class="desc">${esc(d.description)}</p>` : ''}
+        <div class="pills">${pills(d)}</div>
       </div>
     </article>`;
 }
