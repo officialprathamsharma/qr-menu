@@ -1,0 +1,882 @@
+/* ==========================================================
+   QR Menu — restaurant dashboard (pilot)
+   - Live mode (assets/js/config.js filled in): owner signs in, edits are saved to Supabase.
+   - Demo mode (no config): edits are saved in this browser only (IndexedDB).
+   URL: /admin/?r=<slug>  (demo mode; live mode uses the menu linked to the account)
+   ========================================================== */
+import {
+  supabaseEnabled, getSupabase, loadMenu, loadStatic, saveLocal, clearLocal, saveSupabase, uploadMedia, resolveMedia,
+} from '../assets/js/store.js';
+
+const root = document.getElementById('admin');
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = (s) =>
+  String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
+const slugify = (s) => String(s).toLowerCase().normalize('NFKD').replace(/[^\w\s-]/g, '').trim().replace(/[\s_]+/g, '-').replace(/-+/g, '-').slice(0, 60) || 'item';
+
+const MODE = supabaseEnabled() ? 'live' : 'demo';
+const params = new URLSearchParams(location.search);
+let slug = (params.get('r') || 'arabico').toLowerCase().replace(/[^a-z0-9-]/g, '') || 'arabico';
+
+let menu = null;
+let dirty = false;
+let view = 'items';
+let itemSearch = '';
+let itemCat = 'all';
+let editing = null; // { draft, isNew }
+
+const MAX_VIDEO_MB = 50;
+const WARN_VIDEO_MB = 20;
+
+/* ---------- Icons ---------- */
+const svg = (p) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+const I = {
+  up: svg('<path d="m6 15 6-6 6 6"/>'),
+  down: svg('<path d="m6 9 6 6 6-6"/>'),
+  close: svg('<path d="M6 6l12 12M18 6 6 18"/>'),
+  more: svg('<circle cx="5" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="19" cy="12" r="1.5" fill="currentColor"/>'),
+  video: svg('<rect x="3" y="6" width="13" height="12" rx="2"/><path d="m16 10 5-3v10l-5-3"/>'),
+  ext: svg('<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>'),
+  plus: svg('<path d="M12 5v14M5 12h14"/>'),
+};
+
+/* ---------- Helpers ---------- */
+function toast(msg, isErr = false) {
+  $('.toast')?.remove();
+  const t = document.createElement('div');
+  t.className = `toast${isErr ? ' err' : ''}`;
+  t.setAttribute('role', isErr ? 'alert' : 'status');
+  t.textContent = msg;
+  document.body.append(t);
+  setTimeout(() => t.remove(), isErr ? 6000 : 3000);
+}
+function setDirty(v = true) {
+  dirty = v;
+  const btn = $('#publish');
+  if (btn) {
+    btn.disabled = !dirty;
+    btn.innerHTML = dirty ? '<span class="dirty-dot"></span>Save &amp; publish' : 'All changes saved';
+  }
+}
+addEventListener('beforeunload', (e) => { if (dirty) { e.preventDefault(); e.returnValue = ''; } });
+
+function applyTheme() {
+  const p = /^#[0-9a-f]{6}$/i.test(menu?.theme?.primary || '') ? menu.theme.primary : '#d4a373';
+  document.documentElement.style.setProperty('--primary', p);
+  const [r, g, b] = p.slice(1).match(/.{2}/g).map((x) => parseInt(x, 16) / 255);
+  document.documentElement.style.setProperty('--on-primary', 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.45 ? '#0b0b0b' : '#ffffff');
+}
+
+/** Fill <img data-media> / <video data-media> once idb: URLs are resolved. */
+async function hydrate(rootEl) {
+  await Promise.all(
+    $$('[data-media]', rootEl).map(async (el) => {
+      const url = await resolveMedia(el.dataset.media);
+      if (url) el.src = url;
+      else el.removeAttribute('src');
+    }),
+  );
+}
+
+const fmt = (n) => {
+  try {
+    return new Intl.NumberFormat(menu.locale || 'en-IN', { style: 'currency', currency: menu.currency || 'INR', maximumFractionDigits: 0 }).format(n);
+  } catch { return `₹${n}`; }
+};
+const categories = () => (menu.sections || []).filter((s) => s.type === 'category');
+const rails = () => (menu.sections || []).filter((s) => s.type === 'tag');
+const vegKind = (d) => (d.diet?.veg ? 'veg' : d.diet?.egg ? 'egg' : 'nonveg');
+
+/* ---------- Image processing ---------- */
+async function compressImage(file, maxSide = 1280) {
+  const bmp = await createImageBitmap(file);
+  const scale = Math.min(1, maxSide / Math.max(bmp.width, bmp.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(bmp.width * scale);
+  canvas.height = Math.round(bmp.height * scale);
+  canvas.getContext('2d').drawImage(bmp, 0, 0, canvas.width, canvas.height);
+  bmp.close?.();
+  return canvasToBlob(canvas);
+}
+async function canvasToBlob(canvas) {
+  const webp = await new Promise((r) => canvas.toBlob(r, 'image/webp', 0.82));
+  if (webp && webp.type === 'image/webp') return webp;
+  return new Promise((r) => canvas.toBlob(r, 'image/jpeg', 0.85));
+}
+async function frameFromVideo(video) {
+  if (!video.videoWidth) throw new Error('Video is not loaded yet');
+  const scale = Math.min(1, 1280 / Math.max(video.videoWidth, video.videoHeight));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(video.videoWidth * scale);
+  canvas.height = Math.round(video.videoHeight * scale);
+  canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+  return canvasToBlob(canvas); // throws SecurityError for videos hosted without CORS
+}
+
+/* ==========================================================
+   Boot
+   ========================================================== */
+async function boot() {
+  if (MODE === 'live') {
+    const sb = await getSupabase();
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) return renderLogin();
+    const { data: rows, error } = await sb.from('menus').select('slug').eq('owner_id', session.user.id).order('slug');
+    if (error) return fatal(`Couldn't load your restaurant: ${error.message}`);
+    if (!rows?.length) return fatal('This account is not linked to a restaurant yet. Please contact QR Menu support.', true);
+    slug = rows.find((r) => r.slug === slug)?.slug || rows[0].slug;
+    const { data: row } = await sb.from('menus').select('data').eq('slug', slug).single();
+    menu = row?.data && Object.keys(row.data).length ? row.data : null;
+    if (!menu) return renderStart();
+  } else {
+    try {
+      menu = (await loadMenu(slug, 'local')).data;
+    } catch {
+      return renderStart();
+    }
+  }
+  normalize();
+  renderApp();
+}
+
+function normalize() {
+  menu.sections ||= [];
+  menu.dishes ||= [];
+  menu.groups ||= [{ id: 'drinks', label: 'Drinks' }, { id: 'food', label: 'Food' }];
+  menu.badges ||= { bestseller: { label: 'Bestseller', tone: 'primary' }, new: { label: 'New', tone: 'neutral' } };
+  menu.theme ||= { primary: '#d4a373', secondary: '#6b8f4e' };
+  for (const d of menu.dishes) { d.diet ||= { veg: true }; d.tags ||= []; d.badges ||= []; }
+}
+
+function fatal(msg, withSignOut = false) {
+  root.innerHTML = `<div class="login"><div><h1>Dashboard</h1><p>${esc(msg)}</p>${withSignOut ? '<p style="margin-top:14px"><button class="btn ghost" id="signout">Sign out</button></p>' : ''}</div></div>`;
+  $('#signout')?.addEventListener('click', signOut);
+}
+
+function renderLogin() {
+  root.innerHTML = `
+    <div class="login">
+      <form id="login" novalidate>
+        <h1>Menu dashboard</h1>
+        <p>Sign in to manage your menu, photos and videos.</p>
+        <label class="field">Email<input type="email" name="email" autocomplete="username" required></label>
+        <label class="field">Password<input type="password" name="password" autocomplete="current-password" required></label>
+        <p class="error" id="login-err" role="alert"></p>
+        <button class="btn" type="submit">Sign in</button>
+        <button class="btn ghost" type="button" id="forgot">Email me a reset link</button>
+      </form>
+    </div>`;
+  const form = $('#login');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const sb = await getSupabase();
+    const { error } = await sb.auth.signInWithPassword({ email: form.email.value.trim(), password: form.password.value });
+    if (error) { $('#login-err').textContent = error.message; return; }
+    root.innerHTML = '<div class="boot"><span></span></div>';
+    boot();
+  });
+  $('#forgot').onclick = async () => {
+    const email = form.email.value.trim();
+    if (!email) { $('#login-err').textContent = 'Enter your email first.'; return; }
+    const sb = await getSupabase();
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.href });
+    $('#login-err').textContent = error ? error.message : 'Check your inbox for a reset link.';
+  };
+}
+
+async function signOut() {
+  if (dirty && !confirm('You have unsaved changes. Sign out anyway?')) return;
+  dirty = false;
+  const sb = await getSupabase();
+  await sb.auth.signOut();
+  location.reload();
+}
+
+function renderStart() {
+  root.innerHTML = `
+    <div class="login"><div style="max-width:420px">
+      <h1>Set up your menu</h1>
+      <p>Your menu is empty. Start from the sample data for <b>${esc(slug)}</b> if it exists, or from a blank menu.</p>
+      <p style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+        <button class="btn" id="from-sample">Start from sample</button>
+        <button class="btn ghost" id="blank">Blank menu</button>
+      </p>
+      <p class="error" id="start-err"></p>
+    </div></div>`;
+  $('#from-sample').onclick = async () => {
+    try { menu = await loadStatic(slug); } catch { $('#start-err').textContent = 'No sample found for this restaurant.'; return; }
+    normalize(); renderApp(); setDirty(true);
+  };
+  $('#blank').onclick = () => {
+    menu = { id: slug, name: slug, tagline: '', currency: 'INR', locale: 'en-IN', groups: [{ id: 'drinks', label: 'Drinks' }, { id: 'food', label: 'Food' }], sections: [], dishes: [] };
+    normalize(); renderApp(); setDirty(true);
+  };
+}
+
+/* ==========================================================
+   App shell
+   ========================================================== */
+function previewUrl() {
+  const u = new URL('../', location.href);
+  u.searchParams.set('r', slug);
+  u.searchParams.set('preview', '');
+  if (MODE === 'demo') u.searchParams.set('source', 'local');
+  return u.href.replace('preview=&', 'preview&').replace(/preview=$/, 'preview');
+}
+
+function renderApp() {
+  applyTheme();
+  document.title = `${menu.name} · Dashboard`;
+  root.innerHTML = `
+    <header class="top">
+      <span class="product">QR Menu <span>Dashboard</span></span>
+      <span class="rest">${esc(menu.name)}</span>
+      <span class="mode ${MODE === 'live' ? 'live' : ''}">${MODE === 'live' ? 'Live' : 'Demo · saved in this browser'}</span>
+      <div class="top-actions">
+        <a class="btn ghost sm" id="preview-link" href="${esc(previewUrl())}" target="_blank" rel="noopener">${I.ext}Preview</a>
+        <button class="btn sm" id="publish" disabled>All changes saved</button>
+        <button class="icon-btn" id="more" aria-haspopup="menu" aria-expanded="false" aria-label="More actions">${I.more}</button>
+        <div class="menu-pop" id="more-pop" role="menu" hidden>
+          <button role="menuitem" data-act="export">Export menu (JSON)</button>
+          <label role="menuitem">Import menu (JSON)<input type="file" accept="application/json,.json" id="import" class="sr-only"></label>
+          ${MODE === 'demo' ? '<button role="menuitem" data-act="reset">Reset to sample data</button>' : '<button role="menuitem" data-act="signout">Sign out</button>'}
+        </div>
+      </div>
+    </header>
+    <nav class="tabs" role="tablist">
+      ${[['items', 'Items'], ['categories', 'Categories'], ['branding', 'Branding']]
+        .map(([id, l]) => `<button class="tab" role="tab" data-view="${id}" aria-selected="${view === id}">${l}</button>`).join('')}
+    </nav>
+    <main class="view" id="view"></main>`;
+
+  $('#publish').onclick = publish;
+  $('.tabs').onclick = (e) => {
+    const t = e.target.closest('[data-view]');
+    if (!t) return;
+    view = t.dataset.view;
+    $$('.tab').forEach((x) => x.setAttribute('aria-selected', x.dataset.view === view));
+    renderView();
+  };
+  const more = $('#more');
+  const pop = $('#more-pop');
+  more.onclick = () => { pop.hidden = !pop.hidden; more.setAttribute('aria-expanded', !pop.hidden); };
+  document.addEventListener('click', (e) => { if (!e.target.closest('.top-actions')) { pop.hidden = true; more.setAttribute('aria-expanded', 'false'); } });
+  pop.addEventListener('click', async (e) => {
+    const act = e.target.closest('[data-act]')?.dataset.act;
+    if (act === 'export') exportJson();
+    if (act === 'reset') {
+      if (!confirm('Discard all changes made in this browser and go back to the sample menu?')) return;
+      await clearLocal(slug);
+      dirty = false;
+      location.reload();
+    }
+    if (act === 'signout') signOut();
+  });
+  $('#import').onchange = importJson;
+  setDirty(dirty);
+  renderView();
+}
+
+function renderView() {
+  if (view === 'items') renderItems();
+  else if (view === 'categories') renderCategories();
+  else renderBranding();
+}
+
+async function publish() {
+  const btn = $('#publish');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  try {
+    if (MODE === 'live') await saveSupabase(slug, menu);
+    else await saveLocal(slug, menu);
+    setDirty(false);
+    toast(MODE === 'live' ? 'Published — guests see the new menu now.' : 'Saved in this browser. Use Preview to see it.');
+  } catch (err) {
+    setDirty(true);
+    toast(`Couldn't save: ${err.message || err}`, true);
+  }
+}
+
+function exportJson() {
+  const hasLocal = JSON.stringify(menu).includes('"idb:');
+  const blob = new Blob([JSON.stringify(menu, null, 2)], { type: 'application/json' });
+  const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `${slug}-menu.json` });
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  if (hasLocal) toast('Exported. Note: photos/videos uploaded in demo mode only exist in this browser.');
+}
+
+async function importJson(e) {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  try {
+    const parsed = JSON.parse(await file.text());
+    if (!Array.isArray(parsed.dishes) || !Array.isArray(parsed.sections)) throw new Error('This file is not a menu export.');
+    if (!confirm(`Replace the current menu with "${parsed.name || file.name}" (${parsed.dishes.length} items)?`)) return;
+    menu = parsed;
+    normalize();
+    renderApp();
+    setDirty(true);
+    toast('Imported. Review it, then Save & publish.');
+  } catch (err) {
+    toast(`Import failed: ${err.message}`, true);
+  }
+}
+
+/* ==========================================================
+   Items
+   ========================================================== */
+function renderItems() {
+  const v = $('#view');
+  const cats = categories();
+  const total = menu.dishes.length;
+  const videos = menu.dishes.filter((d) => d.video).length;
+  const off = menu.dishes.filter((d) => d.available === false).length;
+  const noPhoto = menu.dishes.filter((d) => !d.image).length;
+  v.innerHTML = `
+    ${MODE === 'demo' ? '<p class="banner"><strong>Demo mode.</strong> Changes and uploads are saved in this browser only. Connect the pilot backend (see supabase/README.md) to save them for real and share with guests.</p>' : ''}
+    <div class="items-toolbar">
+      <input class="input" type="search" id="item-q" placeholder="Search items" value="${esc(itemSearch)}" aria-label="Search items">
+      <select class="input" id="item-cat" aria-label="Filter by category">
+        <option value="all">All categories</option>
+        ${cats.map((c) => `<option value="${esc(c.match)}" ${itemCat === c.match ? 'selected' : ''}>${esc(c.label)}</option>`).join('')}
+      </select>
+      <button class="btn" id="add-item">${I.plus}Add item</button>
+    </div>
+    <div class="stats">
+      <span><b>${total}</b> items</span><span><b>${videos}</b> with video</span>
+      <span class="${off ? 'warn' : ''}"><b>${off}</b> unavailable</span>
+      ${noPhoto ? `<span class="warn"><b>${noPhoto}</b> missing a photo</span>` : ''}
+    </div>
+    <div id="item-lists"></div>`;
+  $('#item-q').oninput = (e) => { itemSearch = e.target.value; renderItemLists(); };
+  $('#item-cat').onchange = (e) => { itemCat = e.target.value; renderItemLists(); };
+  $('#add-item').onclick = () => openEditor(null);
+  $('#item-lists').addEventListener('click', onItemListClick);
+  $('#item-lists').addEventListener('change', onItemListChange);
+  renderItemLists();
+}
+
+function renderItemLists() {
+  const q = itemSearch.trim().toLowerCase();
+  const cats = categories().filter((c) => itemCat === 'all' || c.match === itemCat);
+  const orphan = menu.dishes.filter((d) => !categories().some((c) => c.match === d.category));
+  const blocks = cats.map((c) => ({ label: c.label, list: menu.dishes.filter((d) => d.category === c.match) }));
+  if (orphan.length && itemCat === 'all') blocks.push({ label: 'No category', list: orphan });
+
+  const html = blocks.map(({ label, list }) => {
+    const shown = q ? list.filter((d) => `${d.name} ${d.description}`.toLowerCase().includes(q)) : list;
+    if (!shown.length) return '';
+    return `<section class="cat-sec"><h3>${esc(label)} <small>${list.length}</small></h3><ul class="item-list">${shown.map((d) => itemRow(d, list)).join('')}</ul></section>`;
+  }).join('');
+  $('#item-lists').innerHTML = html || '<p class="empty-note">No items match.</p>';
+  hydrate($('#item-lists'));
+}
+
+function itemRow(d, siblings) {
+  const i = siblings.indexOf(d);
+  const badges = (d.badges || []).map((b) => `<span class="tag">${esc(menu.badges?.[b]?.label || b)}</span>`).join('');
+  return `
+    <li class="item${d.available === false ? ' off' : ''}" data-id="${esc(d.id)}">
+      ${d.image ? `<img class="thumb" data-media="${esc(d.image)}" alt="">` : '<div class="thumb missing">No photo</div>'}
+      <div class="item-main">
+        <div class="item-name"><span class="vnv ${vegKind(d)}" aria-hidden="true"></span>${esc(d.name)}</div>
+        <div class="item-sub">${fmt(d.price)}${d.prepTime ? ` · ${d.prepTime} min` : ''}
+          ${d.video ? `<span class="tag vid">${I.video}Video</span>` : ''}${badges}</div>
+      </div>
+      <div class="tools">
+        <label class="toggle"><input type="checkbox" data-avail ${d.available === false ? '' : 'checked'} aria-label="${esc(d.name)} available">${d.available === false ? 'Sold out' : 'Available'}</label>
+        <span class="reorder">
+          <button class="icon-btn" data-move="-1" aria-label="Move ${esc(d.name)} up" ${i <= 0 ? 'disabled' : ''}>${I.up}</button>
+          <button class="icon-btn" data-move="1" aria-label="Move ${esc(d.name)} down" ${i >= siblings.length - 1 ? 'disabled' : ''}>${I.down}</button>
+        </span>
+      </div>
+      <button class="btn ghost sm edit" data-edit>Edit</button>
+    </li>`;
+}
+
+function onItemListClick(e) {
+  const li = e.target.closest('.item');
+  if (!li) return;
+  const d = menu.dishes.find((x) => x.id === li.dataset.id);
+  if (e.target.closest('[data-edit]')) return openEditor(d);
+  const mv = e.target.closest('[data-move]');
+  if (mv) {
+    const siblings = menu.dishes.filter((x) => x.category === d.category);
+    const j = siblings.indexOf(d) + Number(mv.dataset.move);
+    if (j < 0 || j >= siblings.length) return;
+    const a = menu.dishes.indexOf(d);
+    const b = menu.dishes.indexOf(siblings[j]);
+    [menu.dishes[a], menu.dishes[b]] = [menu.dishes[b], menu.dishes[a]];
+    setDirty();
+    renderItemLists();
+    $(`.item[data-id="${CSS.escape(d.id)}"] [data-move="${mv.dataset.move}"]`)?.focus();
+  }
+}
+function onItemListChange(e) {
+  if (!e.target.matches('[data-avail]')) return;
+  const d = menu.dishes.find((x) => x.id === e.target.closest('.item').dataset.id);
+  d.available = e.target.checked;
+  setDirty();
+  renderItemLists();
+}
+
+/* ---------- Item editor ---------- */
+function blankDish() {
+  const cat = itemCat !== 'all' ? itemCat : categories()[0]?.match || '';
+  const group = categories().find((c) => c.match === cat)?.group;
+  return {
+    id: '', name: '', category: cat, price: 0, prepTime: 10, image: '', description: '', tags: [], badges: [],
+    diet: { veg: true, egg: false, vegan: false, gf: false }, spice: 0, course: group === 'drinks' ? 'drink' : 'meal',
+    coffee: false, available: true,
+  };
+}
+
+function openEditor(dish) {
+  editing = { draft: structuredClone(dish || blankDish()), isNew: !dish, originalId: dish?.id };
+  const d = editing.draft;
+  const cats = categories();
+  const group = () => cats.find((c) => c.match === d.category)?.group;
+  const back = document.createElement('div');
+  back.className = 'drawer-back';
+  const drawer = document.createElement('aside');
+  drawer.className = 'drawer';
+  drawer.setAttribute('role', 'dialog');
+  drawer.setAttribute('aria-modal', 'true');
+  drawer.setAttribute('aria-labelledby', 'ed-title');
+  drawer.innerHTML = `
+    <div class="drawer-head">
+      <h2 id="ed-title">${editing.isNew ? 'New item' : `Edit · ${esc(d.name)}`}</h2>
+      <button class="icon-btn" data-close aria-label="Close editor">${I.close}</button>
+    </div>
+    <form class="drawer-body" id="ed" novalidate>
+      <fieldset class="fs">
+        <legend>Photo & video</legend>
+        <div class="media-grid">
+          <div class="media-card">
+            <h4>Photo <span class="hint">Tap to set focus</span></h4>
+            <div class="photo-box" id="photo-box">${photoInner(d)}</div>
+            <div class="media-actions">
+              <label class="btn ghost sm">Upload<input type="file" accept="image/*" id="photo-file" class="sr-only"></label>
+              <button type="button" class="btn ghost sm" id="photo-remove" ${d.image ? '' : 'disabled'}>Remove</button>
+            </div>
+            <p class="progress" id="photo-progress" aria-live="polite"></p>
+          </div>
+          <div class="media-card">
+            <h4>Video <span class="hint">Optional · ≤${MAX_VIDEO_MB} MB</span></h4>
+            <div class="video-box" id="video-box">${videoInner(d)}</div>
+            <div class="media-actions">
+              <label class="btn ghost sm">${d.video ? 'Replace' : 'Upload'}<input type="file" accept="video/mp4,video/webm,video/quicktime" id="video-file" class="sr-only"></label>
+              <button type="button" class="btn ghost sm" id="frame" ${d.video ? '' : 'disabled'}>Use frame as photo</button>
+              <button type="button" class="btn ghost sm" id="video-remove" ${d.video ? '' : 'disabled'}>Remove</button>
+            </div>
+            <p class="progress" id="video-progress" aria-live="polite"></p>
+          </div>
+        </div>
+        <p class="hint">Best results: landscape 4:3 or 16:9, bright, the dish in the centre. Videos: 8–20 s loops, MP4 (H.264), no sound needed — guests see them muted.</p>
+      </fieldset>
+
+      <fieldset class="fs">
+        <legend>Details</legend>
+        <label class="field">Name *<input name="name" required maxlength="80" value="${esc(d.name)}"></label>
+        <div class="grid-3">
+          <label class="field">Price (${esc(menu.currency || 'INR')}) *<input name="price" type="number" min="0" step="1" required value="${esc(d.price)}"></label>
+          <label class="field">Prep time (min)<input name="prepTime" type="number" min="0" max="180" value="${esc(d.prepTime ?? '')}"></label>
+          <label class="field">Calories<input name="kcal" type="number" min="0" max="5000" value="${esc(d.kcal ?? '')}"></label>
+        </div>
+        <label class="field">Category *
+          <select name="category" required>${cats.map((c) => `<option value="${esc(c.match)}" ${c.match === d.category ? 'selected' : ''}>${esc(c.label)}${c.group ? ` (${esc(menu.groups.find((g) => g.id === c.group)?.label || c.group)})` : ''}</option>`).join('')}</select>
+        </label>
+        <label class="field">Short description <small>Shown on the menu card (about 1–2 lines)</small><textarea name="description" maxlength="220">${esc(d.description)}</textarea></label>
+      </fieldset>
+
+      <fieldset class="fs">
+        <legend>Diet & type</legend>
+        <div class="seg" role="radiogroup" aria-label="Veg or non-veg">
+          ${[['veg', 'Veg'], ['egg', 'Egg'], ['nonveg', 'Non-veg']].map(([k, l]) => `<label><input type="radio" name="vegKind" value="${k}" ${vegKind(d) === k ? 'checked' : ''}>${l}</label>`).join('')}
+        </div>
+        <div class="row-wrap">
+          <label class="check"><input type="checkbox" name="vegan" ${d.diet?.vegan ? 'checked' : ''}>Vegan</label>
+          <label class="check"><input type="checkbox" name="gf" ${d.diet?.gf ? 'checked' : ''}>Gluten-free</label>
+          <label class="check"><input type="checkbox" name="coffee" ${d.coffee ? 'checked' : ''}>Contains coffee</label>
+        </div>
+        <div class="grid-3">
+          <label class="field">Spice<select name="spice">${['None', 'Mild', 'Medium', 'Hot'].map((l, i) => `<option value="${i}" ${Number(d.spice || 0) === i ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+          <label class="field">Served<select name="temp"><option value="">—</option><option value="hot" ${d.temp === 'hot' ? 'selected' : ''}>Hot</option><option value="cold" ${d.temp === 'cold' ? 'selected' : ''}>Cold</option></select></label>
+          <label class="field">Type<select name="course">${[['drink', 'Drink'], ['meal', 'Meal'], ['snack', 'Snack'], ['side', 'Side / dip']].map(([k, l]) => `<option value="${k}" ${d.course === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+        </div>
+        <label class="field">Allergens <small>Comma separated, e.g. dairy, gluten, nuts</small><input name="allergens" value="${esc((d.allergens || []).join(', '))}"></label>
+      </fieldset>
+
+      <fieldset class="fs">
+        <legend>Highlights</legend>
+        <div class="row-wrap">
+          ${Object.entries(menu.badges || {}).map(([k, b]) => `<label class="check"><input type="checkbox" name="badge" value="${esc(k)}" ${d.badges.includes(k) ? 'checked' : ''}>Badge: ${esc(b.label)}</label>`).join('')}
+        </div>
+        <div class="row-wrap">
+          ${rails().map((r) => `<label class="check"><input type="checkbox" name="tag" value="${esc(r.match)}" ${d.tags.includes(r.match) ? 'checked' : ''}>Show in “${esc(r.label.replaceAll('{name}', menu.name))}”</label>`).join('')}
+        </div>
+      </fieldset>
+
+      <fieldset class="fs">
+        <legend>Story (optional)</legend>
+        <label class="field">The story<textarea name="story" maxlength="600">${esc(d.story || '')}</textarea></label>
+        <label class="field">Chef / barista note<textarea name="chefNote" maxlength="300">${esc(d.chefNote || '')}</textarea></label>
+      </fieldset>
+    </form>
+    <div class="drawer-foot">
+      ${editing.isNew ? '' : '<button class="btn danger sm" data-delete>Delete</button><button class="btn ghost sm" data-duplicate>Duplicate</button>'}
+      <span class="spacer"></span>
+      <button class="btn ghost" data-close>Cancel</button>
+      <button class="btn" data-done>${editing.isNew ? 'Add item' : 'Done'}</button>
+    </div>`;
+  document.body.append(back, drawer);
+  document.documentElement.style.overflow = 'hidden';
+  hydrate(drawer);
+
+  const close = () => {
+    back.remove(); drawer.remove(); editing = null;
+    document.documentElement.style.overflow = '';
+    removeEventListener('keydown', onKey);
+  };
+  const onKey = (e) => { if (e.key === 'Escape') close(); };
+  addEventListener('keydown', onKey);
+  back.onclick = close;
+  $$('[data-close]', drawer).forEach((b) => (b.onclick = close));
+  $('input[name=name]', drawer).focus();
+
+  // Category change → sensible defaults for type
+  $('select[name=category]', drawer).onchange = (e) => {
+    d.category = e.target.value;
+    if (group() === 'drinks') $('select[name=course]', drawer).value = 'drink';
+    else if ($('select[name=course]', drawer).value === 'drink') $('select[name=course]', drawer).value = 'meal';
+  };
+
+  // ---- Photo ----
+  $('#photo-box', drawer).onclick = (e) => {
+    if (!d.image) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const x = Math.round(((e.clientX - r.left) / r.width) * 100);
+    const y = Math.round(((e.clientY - r.top) / r.height) * 100);
+    d.focus = `${x}% ${y}%`;
+    refreshPhoto();
+  };
+  const refreshPhoto = () => {
+    $('#photo-box', drawer).innerHTML = photoInner(d);
+    $('#photo-remove', drawer).disabled = !d.image;
+    hydrate($('#photo-box', drawer));
+  };
+  $('#photo-file', drawer).onchange = async (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return toast('Please choose an image file.', true);
+    const p = $('#photo-progress', drawer);
+    try {
+      p.textContent = 'Optimising photo…';
+      const blob = await compressImage(file);
+      p.textContent = `Uploading (${Math.round(blob.size / 1024)} KB)…`;
+      d.image = await uploadMedia(slug, blob, 'photos', MODE === 'live' ? 'supabase' : 'local');
+      d.focus = '50% 50%';
+      p.textContent = 'Photo ready.';
+      refreshPhoto();
+    } catch (err) {
+      p.textContent = '';
+      toast(`Photo upload failed: ${err.message || err}`, true);
+    }
+  };
+  $('#photo-remove', drawer).onclick = () => { d.image = ''; delete d.focus; refreshPhoto(); };
+
+  // ---- Video ----
+  const refreshVideo = () => {
+    $('#video-box', drawer).innerHTML = videoInner(d);
+    $('#frame', drawer).disabled = !d.video;
+    $('#video-remove', drawer).disabled = !d.video;
+    hydrate($('#video-box', drawer));
+  };
+  $('#video-file', drawer).onchange = async (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!/^video\/(mp4|webm|quicktime)$/.test(file.type)) return toast('Please choose an MP4, WebM or MOV video.', true);
+    const mb = file.size / 1048576;
+    if (mb > MAX_VIDEO_MB) return toast(`That video is ${mb.toFixed(0)} MB. The limit is ${MAX_VIDEO_MB} MB — trim it or export at 720p.`, true);
+    const p = $('#video-progress', drawer);
+    if (mb > WARN_VIDEO_MB) toast(`Heads-up: ${mb.toFixed(0)} MB is large and will load slowly on mobile data. 720p, under 15 MB is ideal.`);
+    try {
+      p.textContent = `Uploading ${mb.toFixed(1)} MB…`;
+      d.video = await uploadMedia(slug, file, 'videos', MODE === 'live' ? 'supabase' : 'local');
+      p.textContent = 'Video ready.';
+      refreshVideo();
+      if (!d.image) {
+        // Auto-create a cover photo from the video.
+        const v = $('#video-box video', drawer);
+        await new Promise((r) => { if (v.readyState >= 2) r(); else v.addEventListener('loadeddata', r, { once: true }); });
+        v.currentTime = Math.min(1, (v.duration || 2) / 2);
+        await new Promise((r) => v.addEventListener('seeked', r, { once: true }));
+        await useFrame();
+      }
+    } catch (err) {
+      p.textContent = '';
+      toast(`Video upload failed: ${err.message || err}`, true);
+    }
+  };
+  const useFrame = async () => {
+    const v = $('#video-box video', drawer);
+    if (!v) return;
+    try {
+      v.pause();
+      const blob = await frameFromVideo(v);
+      $('#photo-progress', drawer).textContent = 'Saving frame as photo…';
+      d.image = await uploadMedia(slug, blob, 'photos', MODE === 'live' ? 'supabase' : 'local');
+      d.focus = '50% 50%';
+      $('#photo-progress', drawer).textContent = 'Photo taken from the video.';
+      refreshPhoto();
+    } catch (err) {
+      toast(err?.name === 'SecurityError'
+        ? 'This video is hosted elsewhere, so a frame can’t be captured. Upload the video file here to use this.'
+        : `Couldn’t capture a frame: ${err.message || err}`, true);
+    }
+  };
+  $('#frame', drawer).onclick = useFrame;
+  $('#video-remove', drawer).onclick = () => { delete d.video; refreshVideo(); };
+
+  // ---- Footer ----
+  $('[data-done]', drawer).onclick = () => {
+    const form = $('#ed', drawer);
+    const f = new FormData(form);
+    const name = String(f.get('name') || '').trim();
+    const price = Number(f.get('price'));
+    if (!name) { form.name.focus(); return toast('Please give the item a name.', true); }
+    if (!(price >= 0) || f.get('price') === '') { form.price.focus(); return toast('Please enter a price.', true); }
+    if (!f.get('category')) return toast('Please choose a category (add one under Categories).', true);
+    const num = (k) => (f.get(k) === '' || f.get(k) == null ? undefined : Number(f.get(k)));
+    const kind = f.get('vegKind');
+    Object.assign(d, {
+      name, price, category: f.get('category'),
+      prepTime: num('prepTime'), kcal: num('kcal'),
+      description: String(f.get('description') || '').trim(),
+      diet: { veg: kind === 'veg', egg: kind === 'egg', vegan: kind === 'veg' && f.has('vegan'), gf: f.has('gf') },
+      coffee: f.has('coffee'), spice: Number(f.get('spice') || 0),
+      temp: f.get('temp') || undefined, course: f.get('course'),
+      allergens: String(f.get('allergens') || '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean),
+      badges: f.getAll('badge'), tags: f.getAll('tag'),
+      story: String(f.get('story') || '').trim() || undefined,
+      chefNote: String(f.get('chefNote') || '').trim() || undefined,
+    });
+    if (editing.isNew) {
+      let id = slugify(name);
+      let n = 2;
+      while (menu.dishes.some((x) => x.id === id)) id = `${slugify(name)}-${n++}`;
+      d.id = id;
+      menu.dishes.push(d);
+    } else {
+      const i = menu.dishes.findIndex((x) => x.id === editing.originalId);
+      menu.dishes[i] = d;
+    }
+    const wasNew = editing.isNew;
+    close();
+    setDirty();
+    renderItems();
+    toast(wasNew ? `Added “${name}”. Remember to Save & publish.` : `Updated “${name}”.`);
+  };
+  $('[data-delete]', drawer)?.addEventListener('click', () => {
+    if (!confirm(`Delete “${d.name}” from the menu?`)) return;
+    menu.dishes = menu.dishes.filter((x) => x.id !== editing.originalId);
+    for (const x of menu.dishes) if (x.pairings) x.pairings = x.pairings.filter((p) => p.dishId !== editing.originalId);
+    close();
+    setDirty();
+    renderItems();
+    toast('Item deleted.');
+  });
+  $('[data-duplicate]', drawer)?.addEventListener('click', () => {
+    const copy = structuredClone(menu.dishes.find((x) => x.id === editing.originalId));
+    copy.name = `${copy.name} (copy)`;
+    copy.id = '';
+    close();
+    openEditorFromDraft(copy);
+  });
+}
+
+function openEditorFromDraft(draft) {
+  openEditor(draft);
+  editing.isNew = true;
+  editing.originalId = undefined;
+  $('#ed-title').textContent = 'New item (copy)';
+  $('[data-delete]')?.remove();
+  $('[data-duplicate]')?.remove();
+  $('[data-done]').textContent = 'Add item';
+}
+
+function photoInner(d) {
+  if (!d.image) return '<div class="media-empty">No photo yet.<br>Upload one, or upload a video and use a frame.</div>';
+  const [x, y] = (d.focus || '50% 50%').split(' ');
+  return `<img data-media="${esc(d.image)}" alt="Photo of ${esc(d.name)}" style="object-position:${esc(d.focus || '50% 50%')}"><span class="focus-dot" style="left:${esc(x)};top:${esc(y)}"></span>`;
+}
+function videoInner(d) {
+  if (!d.video) return '<div class="media-empty">No video. Short 8–20 s loops work best.</div>';
+  return `<video data-media="${esc(d.video)}" controls muted playsinline loop preload="metadata" crossorigin="anonymous"></video>`;
+}
+
+/* ==========================================================
+   Categories & featured lists
+   ========================================================== */
+function renderCategories() {
+  const v = $('#view');
+  const cats = categories();
+  v.innerHTML = `
+    <div class="panel">
+      <h3>Categories</h3>
+      <p>Grouped under ${menu.groups.map((g) => `<b>${esc(g.label)}</b>`).join(' and ')} on the guest menu. Order here is the order guests see.</p>
+      ${cats.map((c, i) => `
+        <div class="cat-row" data-sec="${esc(c.id)}">
+          <label class="field">Name<input value="${esc(c.label)}" data-k="label"></label>
+          <label class="field">Subtitle<input value="${esc(c.eyebrow || '')}" data-k="eyebrow" placeholder="e.g. Fresh from the oven"></label>
+          <label class="field">Group<select data-k="group">${menu.groups.map((g) => `<option value="${esc(g.id)}" ${c.group === g.id ? 'selected' : ''}>${esc(g.label)}</option>`).join('')}</select></label>
+          <span class="count">${menu.dishes.filter((d) => d.category === c.match).length} items</span>
+          <span class="reorder">
+            <button class="icon-btn" data-smove="-1" aria-label="Move ${esc(c.label)} up" ${i === 0 ? 'disabled' : ''}>${I.up}</button>
+            <button class="icon-btn" data-smove="1" aria-label="Move ${esc(c.label)} down" ${i === cats.length - 1 ? 'disabled' : ''}>${I.down}</button>
+            <button class="icon-btn" data-sdel aria-label="Delete ${esc(c.label)}" ${menu.dishes.some((d) => d.category === c.match) ? 'disabled title="Move or delete its items first"' : ''}>${I.close}</button>
+          </span>
+        </div>`).join('')}
+      <form id="add-cat" style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+        <input class="input" name="label" placeholder="New category name" required style="flex:1;min-width:180px">
+        <select class="input" name="group" style="flex:0 0 140px">${menu.groups.map((g) => `<option value="${esc(g.id)}">${esc(g.label)}</option>`).join('')}</select>
+        <button class="btn" type="submit">${I.plus}Add</button>
+      </form>
+    </div>
+    <div class="panel">
+      <h3>Featured lists</h3>
+      <p>The large video rails at the top of the menu. Choose which items appear from each item’s “Highlights”. Use {name} for your restaurant name.</p>
+      ${rails().map((r) => `
+        <div class="cat-row" data-sec="${esc(r.id)}">
+          <label class="field">Title<input value="${esc(r.label)}" data-k="label"></label>
+          <label class="field">Subtitle<input value="${esc(r.eyebrow || '')}" data-k="eyebrow"></label>
+          <span></span>
+          <span class="count">${menu.dishes.filter((d) => d.tags?.includes(r.match)).length} items</span>
+          <span></span>
+        </div>`).join('')}
+    </div>`;
+
+  v.oninput = (e) => {
+    const row = e.target.closest('[data-sec]');
+    const k = e.target.dataset.k;
+    if (!row || !k) return;
+    const sec = menu.sections.find((s) => s.id === row.dataset.sec);
+    sec[k] = e.target.value;
+    setDirty();
+  };
+  v.onclick = (e) => {
+    const row = e.target.closest('[data-sec]');
+    const mv = e.target.closest('[data-smove]');
+    if (row && mv) {
+      const list = categories();
+      const c = list.find((s) => s.id === row.dataset.sec);
+      const other = list[list.indexOf(c) + Number(mv.dataset.smove)];
+      if (!other) return;
+      const a = menu.sections.indexOf(c);
+      const b = menu.sections.indexOf(other);
+      [menu.sections[a], menu.sections[b]] = [menu.sections[b], menu.sections[a]];
+      setDirty();
+      renderCategories();
+    }
+    if (row && e.target.closest('[data-sdel]')) {
+      menu.sections = menu.sections.filter((s) => s.id !== row.dataset.sec);
+      setDirty();
+      renderCategories();
+    }
+  };
+  $('#add-cat').onsubmit = (e) => {
+    e.preventDefault();
+    const label = e.target.label.value.trim();
+    if (!label) return;
+    let id = slugify(label);
+    let n = 2;
+    while (menu.sections.some((s) => s.id === id)) id = `${slugify(label)}-${n++}`;
+    menu.sections.push({ id, label, type: 'category', match: id, group: e.target.group.value });
+    setDirty();
+    renderCategories();
+    toast(`Added “${label}”.`);
+  };
+}
+
+/* ==========================================================
+   Branding (owner-only theme)
+   ========================================================== */
+function renderBranding() {
+  const v = $('#view');
+  const t = menu.theme || {};
+  v.innerHTML = `
+    <div class="panel">
+      <h3>Restaurant</h3>
+      <div class="brand-grid" style="margin-top:12px">
+        <label class="field">Name<input data-b="name" value="${esc(menu.name)}"></label>
+        <label class="field">Tagline<input data-b="tagline" value="${esc(menu.tagline || '')}" placeholder="e.g. Specialty coffee · Janakpuri"></label>
+        <label class="field">Who signs the notes<input data-b="chef" value="${esc(menu.chef || '')}" placeholder="e.g. Chef Karim"></label>
+        <label class="field">Currency<select data-b="currency">${['INR', 'AED', 'USD', 'EUR', 'GBP'].map((c) => `<option ${menu.currency === c ? 'selected' : ''}>${c}</option>`).join('')}</select></label>
+      </div>
+      <label class="field" style="margin-top:12px">Footer note<input data-b="footerNote" value="${esc(menu.footerNote || '')}"></label>
+    </div>
+    <div class="panel">
+      <h3>Logo</h3>
+      <div class="logo-edit" style="margin-top:10px">
+        ${menu.logo ? `<img data-media="${esc(menu.logo)}" alt="Logo">` : `<div class="mono" style="background:${esc(t.primary)};color:#0b0b0b">${esc((menu.name || '?')[0])}</div>`}
+        <label class="btn ghost sm">Upload logo<input type="file" accept="image/*" id="logo-file" class="sr-only"></label>
+        ${menu.logo ? '<button class="btn ghost sm" id="logo-remove">Remove</button>' : ''}
+      </div>
+      <p class="hint" style="margin-top:8px">Square image, at least 256×256. Without a logo we show your first letter.</p>
+    </div>
+    <div class="panel">
+      <h3>Colours</h3>
+      <p>The background always stays black. Primary is used for buttons, prices and active filters; secondary for badges.</p>
+      <div class="brand-grid">
+        <label class="field">Primary<span class="color-field"><input type="color" data-c="primary" value="${esc(t.primary || '#d4a373')}"><input class="input" data-ch="primary" value="${esc(t.primary || '#d4a373')}" maxlength="7"></span></label>
+        <label class="field">Secondary<span class="color-field"><input type="color" data-c="secondary" value="${esc(t.secondary || '#6b8f4e')}"><input class="input" data-ch="secondary" value="${esc(t.secondary || '#6b8f4e')}" maxlength="7"></span></label>
+      </div>
+      <div class="preview-strip" style="margin-top:14px" id="pv"></div>
+    </div>`;
+  hydrate(v);
+  const paintPreview = () => {
+    const p = menu.theme.primary; const s = menu.theme.secondary;
+    $('#pv').innerHTML = `
+      <span class="pv-chip" style="background:${esc(p)};color:#0b0b0b">Popular</span>
+      <span class="pv-chip" style="background:#181818;color:#f4f1ec;border:1px solid rgba(255,255,255,.1)">Veg</span>
+      <span style="color:${esc(p)};font-weight:600">₹329</span>
+      <span class="pv-chip" style="background:${esc(s)};color:#fff;height:24px;font-size:11px">Signature</span>`;
+  };
+  paintPreview();
+  v.oninput = (e) => {
+    const b = e.target.dataset.b;
+    if (b) { menu[b] = e.target.value; setDirty(); if (b === 'name') $('.rest').textContent = e.target.value; return; }
+    const c = e.target.dataset.c || e.target.dataset.ch;
+    if (c) {
+      const val = e.target.value.trim();
+      if (!/^#[0-9a-f]{6}$/i.test(val)) return;
+      menu.theme[c] = val;
+      $(`[data-c=${c}]`).value = val;
+      $(`[data-ch=${c}]`).value = val;
+      applyTheme();
+      paintPreview();
+      setDirty();
+    }
+  };
+  v.onchange = (e) => { if (e.target.dataset.b === 'currency') { menu.currency = e.target.value; setDirty(); } };
+  $('#logo-file').onchange = async (e) => {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const blob = await compressImage(file, 512);
+      menu.logo = await uploadMedia(slug, blob, 'brand', MODE === 'live' ? 'supabase' : 'local');
+      setDirty();
+      renderBranding();
+    } catch (err) { toast(`Logo upload failed: ${err.message || err}`, true); }
+  };
+  $('#logo-remove')?.addEventListener('click', () => { menu.logo = null; setDirty(); renderBranding(); });
+}
+
+boot().catch((err) => fatal(`Something went wrong: ${err.message || err}`));

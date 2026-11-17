@@ -38,6 +38,16 @@
       "tone": "neutral"
     }
   },
+  "groups": [
+    {
+      "id": "drinks",
+      "label": "Drinks"
+    },
+    {
+      "id": "food",
+      "label": "Food"
+    }
+  ],
   "sections": [
     {
       "id": "most-loved",
@@ -72,6 +82,7 @@
       "label": "Matcha",
       "type": "category",
       "match": "matcha",
+      "group": "drinks",
       "eyebrow": "Whisked to order"
     },
     {
@@ -79,6 +90,7 @@
       "label": "Specialty Coffee",
       "type": "category",
       "match": "specialty",
+      "group": "drinks",
       "eyebrow": "Signature creations"
     },
     {
@@ -86,6 +98,7 @@
       "label": "Hot Coffee",
       "type": "category",
       "match": "hot",
+      "group": "drinks",
       "eyebrow": "As hot as you"
     },
     {
@@ -93,6 +106,7 @@
       "label": "Cold Coffee",
       "type": "category",
       "match": "cold",
+      "group": "drinks",
       "eyebrow": "If you like it cold"
     },
     {
@@ -100,6 +114,7 @@
       "label": "Teas & Coolers",
       "type": "category",
       "match": "teas",
+      "group": "drinks",
       "eyebrow": "Freshly brewed"
     },
     {
@@ -107,6 +122,7 @@
       "label": "Sandwiches & Toast",
       "type": "category",
       "match": "sandwiches",
+      "group": "food",
       "eyebrow": "Between the slices"
     },
     {
@@ -114,6 +130,7 @@
       "label": "Eggs & Rolls",
       "type": "category",
       "match": "eggs",
+      "group": "food",
       "eyebrow": "Eggstation"
     },
     {
@@ -121,6 +138,7 @@
       "label": "Wraps",
       "type": "category",
       "match": "wraps",
+      "group": "food",
       "eyebrow": "It's a wrap"
     },
     {
@@ -128,6 +146,7 @@
       "label": "Bowls & Salads",
       "type": "category",
       "match": "bowls",
+      "group": "food",
       "eyebrow": "Comforting large plates"
     },
     {
@@ -135,6 +154,7 @@
       "label": "Pasta",
       "type": "category",
       "match": "pasta",
+      "group": "food",
       "eyebrow": "Fresh off the stove"
     },
     {
@@ -142,6 +162,7 @@
       "label": "Pizza",
       "type": "category",
       "match": "pizza",
+      "group": "food",
       "eyebrow": "Hot from the oven"
     },
     {
@@ -149,6 +170,7 @@
       "label": "Fries & Dips",
       "type": "category",
       "match": "fries",
+      "group": "food",
       "eyebrow": "Something on the side"
     }
   ],
@@ -186,7 +208,11 @@
       ],
       "allergens": [
         "dairy"
-      ]
+      ],
+      "course": "drink",
+      "temp": "hot",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "berry-dreams",
@@ -212,7 +238,11 @@
       "kcal": 210,
       "allergens": [
         "dairy"
-      ]
+      ],
+      "course": "drink",
+      "temp": "cold",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "coco-cloud",
@@ -231,7 +261,11 @@
         "gf": false
       },
       "spice": 0,
-      "kcal": 190
+      "kcal": 190,
+      "course": "drink",
+      "temp": "cold",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "oat-gold",
@@ -250,7 +284,11 @@
         "gf": false
       },
       "spice": 0,
-      "kcal": 200
+      "kcal": 200,
+      "course": "drink",
+      "temp": "cold",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "summer-glow",
@@ -272,7 +310,11 @@
       "kcal": 180,
       "allergens": [
         "dairy"
-      ]
+      ],
+      "course": "drink",
+      "temp": "cold",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "sweet-vanilla",
@@ -294,7 +336,11 @@
       "kcal": 200,
       "allergens": [
         "dairy"
-      ]
+      ],
+      "course": "drink",
+      "temp": "hot",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "iced-coco-latte",
@@ -326,7 +372,11 @@
           "dishId": "chicken-pesto-sandwich",
           "note": "Creamy coffee, herby crunch."
         }
-      ]
+      ],
+      "course": "drink",
+      "temp": "cold",
+      "coffee": true,
+      "available": true
     },
     {
       "id": "iced-freddo-cappuccino",
@@ -350,7 +400,11 @@
       "kcal": 150,
       "allergens": [
         "dairy"
-      ]
+      ],
+      "course": "drink",
+      "temp": "cold",
+      "coffee": true,
+      "available": true
     },
     {
       "id": "pineapple-trifecta",
@@ -374,7 +428,11 @@
       },
       "spice": 0,
       "kcal": 140,
-      "story": "Coffee and pineapple sound strange together until the first sip: the fruit lifts the coffee's natural acidity."
+      "story": "Coffee and pineapple sound strange together until the first sip: the fruit lifts the coffee's natural acidity.",
+      "course": "drink",
+      "temp": "cold",
+      "coffee": true,
+      "available": true
     },
     {
       "id": "spanish-iced-latte",
@@ -400,7 +458,11 @@
       "kcal": 240,
       "allergens": [
         "dairy"
-      ]
+      ],
+      "course": "drink",
+      "temp": "cold",
+      "coffee": true,
+      "available": true
     },
     {
       "id": "tangerine-iced-coffee",
@@ -421,7 +483,11 @@
         "gf": false
       },
       "spice": 0,
-      "kcal": 130
+      "kcal": 130,
+      "course": "drink",
+      "temp": "cold",
+      "coffee": true,
+      "available": true
     },
     {
       "id": "vanilla-sweet-cream-brew",
@@ -445,7 +511,11 @@
       "kcal": 220,
       "allergens": [
         "dairy"
-      ]
+      ],
+      "course": "drink",
+      "temp": "cold",
+      "coffee": true,
+      "available": true
     },
     {
       "id": "vietnamese-iced-coffee",
@@ -469,7 +539,11 @@
       "kcal": 230,
       "allergens": [
         "dairy"
-      ]
+      ],
+      "course": "drink",
+      "temp": "cold",
+      "coffee": true,
+      "available": true
     },
     {
       "id": "americano",
@@ -489,7 +563,11 @@
         "gf": false
       },
       "spice": 0,
-      "kcal": 10
+      "kcal": 10,
+      "course": "drink",
+      "temp": "hot",
+      "coffee": true,
+      "available": true
     },
     {
       "id": "arabico-hot-chocolate",
@@ -513,7 +591,11 @@
       "kcal": 320,
       "allergens": [
         "dairy"
-      ]
+      ],
+      "course": "drink",
+      "temp": "hot",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "biscoff-latte",
@@ -555,7 +637,11 @@
       "allergens": [
         "dairy",
         "gluten"
-      ]
+      ],
+      "course": "drink",
+      "temp": "hot",
+      "coffee": true,
+      "available": true
     },
     {
       "id": "cappuccino",
@@ -578,7 +664,11 @@
       "kcal": 120,
       "allergens": [
         "dairy"
-      ]
+      ],
+      "course": "drink",
+      "temp": "hot",
+      "coffee": true,
+      "available": true
     },
     {
       "id": "honey-cinnamon-latte",
@@ -603,7 +693,11 @@
       "kcal": 210,
       "allergens": [
         "dairy"
-      ]
+      ],
+      "course": "drink",
+      "temp": "hot",
+      "coffee": true,
+      "available": true
     },
     {
       "id": "latte",
@@ -625,7 +719,11 @@
       "kcal": 150,
       "allergens": [
         "dairy"
-      ]
+      ],
+      "course": "drink",
+      "temp": "hot",
+      "coffee": true,
+      "available": true
     },
     {
       "id": "mocha",
@@ -648,7 +746,11 @@
       "kcal": 260,
       "allergens": [
         "dairy"
-      ]
+      ],
+      "course": "drink",
+      "temp": "hot",
+      "coffee": true,
+      "available": true
     },
     {
       "id": "spanish-latte",
@@ -670,7 +772,11 @@
       "kcal": 230,
       "allergens": [
         "dairy"
-      ]
+      ],
+      "course": "drink",
+      "temp": "hot",
+      "coffee": true,
+      "available": true
     },
     {
       "id": "coffee-lemonade",
@@ -689,7 +795,11 @@
         "gf": false
       },
       "spice": 0,
-      "kcal": 110
+      "kcal": 110,
+      "course": "drink",
+      "temp": "cold",
+      "coffee": true,
+      "available": true
     },
     {
       "id": "coffee-tonic",
@@ -710,7 +820,11 @@
         "gf": false
       },
       "spice": 0,
-      "kcal": 90
+      "kcal": 90,
+      "course": "drink",
+      "temp": "cold",
+      "coffee": true,
+      "available": true
     },
     {
       "id": "cranberry-coffee",
@@ -729,7 +843,11 @@
         "gf": false
       },
       "spice": 0,
-      "kcal": 120
+      "kcal": 120,
+      "course": "drink",
+      "temp": "cold",
+      "coffee": true,
+      "available": true
     },
     {
       "id": "iced-americano",
@@ -748,7 +866,11 @@
         "gf": false
       },
       "spice": 0,
-      "kcal": 10
+      "kcal": 10,
+      "course": "drink",
+      "temp": "cold",
+      "coffee": true,
+      "available": true
     },
     {
       "id": "iced-cappuccino",
@@ -770,7 +892,11 @@
       "kcal": 130,
       "allergens": [
         "dairy"
-      ]
+      ],
+      "course": "drink",
+      "temp": "cold",
+      "coffee": true,
+      "available": true
     },
     {
       "id": "iced-caramel-macchiato",
@@ -792,7 +918,11 @@
       "kcal": 250,
       "allergens": [
         "dairy"
-      ]
+      ],
+      "course": "drink",
+      "temp": "cold",
+      "coffee": true,
+      "available": true
     },
     {
       "id": "iced-latte",
@@ -814,7 +944,11 @@
       "kcal": 140,
       "allergens": [
         "dairy"
-      ]
+      ],
+      "course": "drink",
+      "temp": "cold",
+      "coffee": true,
+      "available": true
     },
     {
       "id": "iced-mocha",
@@ -836,7 +970,11 @@
       "kcal": 260,
       "allergens": [
         "dairy"
-      ]
+      ],
+      "course": "drink",
+      "temp": "cold",
+      "coffee": true,
+      "available": true
     },
     {
       "id": "frappe",
@@ -858,7 +996,11 @@
       "kcal": 380,
       "allergens": [
         "dairy"
-      ]
+      ],
+      "course": "drink",
+      "temp": "cold",
+      "coffee": true,
+      "available": true
     },
     {
       "id": "honey-ginger-lemon-tea",
@@ -878,7 +1020,11 @@
         "gf": false
       },
       "spice": 0,
-      "kcal": 60
+      "kcal": 60,
+      "course": "drink",
+      "temp": "hot",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "iced-hibiscus-mint-tea",
@@ -897,7 +1043,11 @@
         "gf": false
       },
       "spice": 0,
-      "kcal": 50
+      "kcal": 50,
+      "course": "drink",
+      "temp": "cold",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "lemon-green-tea",
@@ -917,7 +1067,11 @@
         "gf": false
       },
       "spice": 0,
-      "kcal": 5
+      "kcal": 5,
+      "course": "drink",
+      "temp": "hot",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "peach-iced-tea",
@@ -936,7 +1090,11 @@
         "gf": false
       },
       "spice": 0,
-      "kcal": 90
+      "kcal": 90,
+      "course": "drink",
+      "temp": "cold",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "zero-sugar-iced-tea",
@@ -955,7 +1113,11 @@
         "gf": false
       },
       "spice": 0,
-      "kcal": 5
+      "kcal": 5,
+      "course": "drink",
+      "temp": "cold",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "blueberry-mojito",
@@ -974,7 +1136,11 @@
         "gf": false
       },
       "spice": 0,
-      "kcal": 120
+      "kcal": 120,
+      "course": "drink",
+      "temp": "cold",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "passion-mojito",
@@ -993,7 +1159,11 @@
         "gf": false
       },
       "spice": 0,
-      "kcal": 120
+      "kcal": 120,
+      "course": "drink",
+      "temp": "cold",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "og-caesar",
@@ -1016,7 +1186,10 @@
       "allergens": [
         "dairy",
         "gluten"
-      ]
+      ],
+      "course": "meal",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "veg-house-special",
@@ -1038,7 +1211,10 @@
       "kcal": 360,
       "allergens": [
         "peanuts"
-      ]
+      ],
+      "course": "meal",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "veg-mexican-salad",
@@ -1058,7 +1234,10 @@
         "gf": false
       },
       "spice": 1,
-      "kcal": 340
+      "kcal": 340,
+      "course": "meal",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "basil-mushroom-sandwich",
@@ -1081,7 +1260,10 @@
       "allergens": [
         "dairy",
         "gluten"
-      ]
+      ],
+      "course": "meal",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "chicken-pesto-sandwich",
@@ -1122,7 +1304,10 @@
         "dairy",
         "gluten",
         "nuts"
-      ]
+      ],
+      "course": "meal",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "chicken-hummus-sandwich",
@@ -1145,7 +1330,10 @@
       "allergens": [
         "gluten",
         "sesame"
-      ]
+      ],
+      "course": "meal",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "delhi-chicken-sandwich",
@@ -1168,7 +1356,10 @@
       "allergens": [
         "gluten",
         "egg"
-      ]
+      ],
+      "course": "meal",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "garden-hummus-sandwich",
@@ -1191,7 +1382,10 @@
       "allergens": [
         "gluten",
         "sesame"
-      ]
+      ],
+      "course": "meal",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "homestyle-paneer-sandwich",
@@ -1214,7 +1408,10 @@
       "allergens": [
         "dairy",
         "gluten"
-      ]
+      ],
+      "course": "meal",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "saucy-chicken",
@@ -1236,7 +1433,10 @@
       "kcal": 530,
       "allergens": [
         "gluten"
-      ]
+      ],
+      "course": "meal",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "veg-club-sandwich",
@@ -1260,7 +1460,10 @@
       "allergens": [
         "dairy",
         "gluten"
-      ]
+      ],
+      "course": "meal",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "pesto-mushroom-toast",
@@ -1283,7 +1486,10 @@
       "allergens": [
         "gluten",
         "nuts"
-      ]
+      ],
+      "course": "meal",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "classic-chicken-roll",
@@ -1306,7 +1512,10 @@
       "allergens": [
         "gluten",
         "egg"
-      ]
+      ],
+      "course": "meal",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "scrambled-eggs-toast",
@@ -1331,7 +1540,10 @@
         "egg",
         "dairy",
         "gluten"
-      ]
+      ],
+      "course": "meal",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "arabico-omelette-plate",
@@ -1358,7 +1570,10 @@
         "egg",
         "dairy",
         "gluten"
-      ]
+      ],
+      "course": "meal",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "chicken-chipotle-wrap",
@@ -1383,7 +1598,10 @@
       "allergens": [
         "gluten",
         "dairy"
-      ]
+      ],
+      "course": "meal",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "chicken-hummus-wrap",
@@ -1406,7 +1624,10 @@
       "allergens": [
         "gluten",
         "sesame"
-      ]
+      ],
+      "course": "meal",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "classic-falafel-wrap",
@@ -1431,7 +1652,10 @@
       "allergens": [
         "gluten",
         "sesame"
-      ]
+      ],
+      "course": "meal",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "delhi-chicken-wrap",
@@ -1453,7 +1677,10 @@
       "kcal": 550,
       "allergens": [
         "gluten"
-      ]
+      ],
+      "course": "meal",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "exotic-mushroom-wrap",
@@ -1476,7 +1703,10 @@
       "allergens": [
         "gluten",
         "dairy"
-      ]
+      ],
+      "course": "meal",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "exotic-veggies-wrap",
@@ -1499,7 +1729,10 @@
       "allergens": [
         "gluten",
         "dairy"
-      ]
+      ],
+      "course": "meal",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "grilled-chicken",
@@ -1518,7 +1751,10 @@
         "gf": false
       },
       "spice": 0,
-      "kcal": 520
+      "kcal": 520,
+      "course": "meal",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "protein-bowl",
@@ -1540,7 +1776,10 @@
       "kcal": 540,
       "allergens": [
         "dairy"
-      ]
+      ],
+      "course": "meal",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "veg-burrito-bowl",
@@ -1562,7 +1801,10 @@
       "kcal": 580,
       "allergens": [
         "dairy"
-      ]
+      ],
+      "course": "meal",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "veg-thai-rice-bowl",
@@ -1581,7 +1823,10 @@
         "gf": false
       },
       "spice": 2,
-      "kcal": 560
+      "kcal": 560,
+      "course": "meal",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "aglio-e-olio",
@@ -1604,7 +1849,10 @@
       "kcal": 480,
       "allergens": [
         "gluten"
-      ]
+      ],
+      "course": "meal",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "alfredo-pasta",
@@ -1637,7 +1885,10 @@
       "allergens": [
         "gluten",
         "dairy"
-      ]
+      ],
+      "course": "meal",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "arrabbiata-pasta",
@@ -1659,7 +1910,10 @@
       "kcal": 500,
       "allergens": [
         "gluten"
-      ]
+      ],
+      "course": "meal",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "coco-curry-pasta",
@@ -1681,7 +1935,10 @@
       "kcal": 590,
       "allergens": [
         "gluten"
-      ]
+      ],
+      "course": "meal",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "creamy-pesto-pasta",
@@ -1705,7 +1962,10 @@
         "gluten",
         "dairy",
         "nuts"
-      ]
+      ],
+      "course": "meal",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "k-night-pasta",
@@ -1730,7 +1990,10 @@
       "allergens": [
         "gluten",
         "dairy"
-      ]
+      ],
+      "course": "meal",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "rose-pasta",
@@ -1753,7 +2016,10 @@
       "allergens": [
         "gluten",
         "dairy"
-      ]
+      ],
+      "course": "meal",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "delhi-chicken-pizza",
@@ -1777,7 +2043,10 @@
       "allergens": [
         "gluten",
         "dairy"
-      ]
+      ],
+      "course": "meal",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "farmhouse-pizza",
@@ -1800,7 +2069,10 @@
       "allergens": [
         "gluten",
         "dairy"
-      ]
+      ],
+      "course": "meal",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "margherita-pizza",
@@ -1823,7 +2095,10 @@
       "allergens": [
         "gluten",
         "dairy"
-      ]
+      ],
+      "course": "meal",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "pesto-margherita-pizza",
@@ -1847,7 +2122,10 @@
         "gluten",
         "dairy",
         "nuts"
-      ]
+      ],
+      "course": "meal",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "pesto-olive-mushroom-pizza",
@@ -1871,7 +2149,10 @@
         "gluten",
         "dairy",
         "nuts"
-      ]
+      ],
+      "course": "meal",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "truffle-mushroom-pizza",
@@ -1905,7 +2186,10 @@
       "allergens": [
         "gluten",
         "dairy"
-      ]
+      ],
+      "course": "meal",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "cheesy-fries",
@@ -1927,7 +2211,10 @@
       "kcal": 560,
       "allergens": [
         "dairy"
-      ]
+      ],
+      "course": "snack",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "exotic-mushroom-fries",
@@ -1949,7 +2236,10 @@
       "kcal": 580,
       "allergens": [
         "dairy"
-      ]
+      ],
+      "course": "snack",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "peri-peri-fries",
@@ -1973,7 +2263,10 @@
         "gf": false
       },
       "spice": 2,
-      "kcal": 480
+      "kcal": 480,
+      "course": "snack",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "salted-fries",
@@ -1993,7 +2286,10 @@
         "gf": false
       },
       "spice": 0,
-      "kcal": 420
+      "kcal": 420,
+      "course": "snack",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "veg-loaded-fries",
@@ -2015,7 +2311,10 @@
       "kcal": 620,
       "allergens": [
         "dairy"
-      ]
+      ],
+      "course": "snack",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "classic-hummus",
@@ -2036,7 +2335,10 @@
       "spice": 0,
       "allergens": [
         "sesame"
-      ]
+      ],
+      "course": "side",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "avocado-dip",
@@ -2054,7 +2356,10 @@
         "vegan": true,
         "gf": false
       },
-      "spice": 0
+      "spice": 0,
+      "course": "side",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "tomato-salsa",
@@ -2072,7 +2377,10 @@
         "vegan": true,
         "gf": false
       },
-      "spice": 1
+      "spice": 1,
+      "course": "side",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "mint-dip",
@@ -2093,7 +2401,10 @@
       "spice": 0,
       "allergens": [
         "dairy"
-      ]
+      ],
+      "course": "side",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "peri-peri-dip",
@@ -2111,7 +2422,10 @@
         "vegan": false,
         "gf": false
       },
-      "spice": 2
+      "spice": 2,
+      "course": "side",
+      "coffee": false,
+      "available": true
     },
     {
       "id": "tandoori-dip",
@@ -2129,7 +2443,10 @@
         "vegan": false,
         "gf": false
       },
-      "spice": 1
+      "spice": 1,
+      "course": "side",
+      "coffee": false,
+      "available": true
     }
   ]
 }

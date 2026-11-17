@@ -246,6 +246,22 @@ add("mint-dip", "Mint Dip", "fries", 39, 1, "1620019989549-bbb873b6612d", "Cool 
 add("peri-peri-dip", "Peri-Peri Dip", "fries", 39, 1, "1783696072732-2ff5cec23b08", "Creamy and fiery.", spice=2)
 add("tandoori-dip", "Tandoori Dip", "fries", 39, 1, "1697126248475-a537cc5cce28", "Smoky tandoori mayo.", spice=1)
 
+GROUP = {c: "drinks" for c in ["matcha", "specialty", "hot", "cold", "teas"]}
+GROUP.update({c: "food" for c in ["sandwiches", "eggs", "wraps", "bowls", "pasta", "pizza", "fries"]})
+HOT_DRINKS = {"og-matcha", "sweet-vanilla", "honey-ginger-lemon-tea", "lemon-green-tea"}
+COFFEE_CATS = {"specialty", "hot", "cold"}
+SIDES = {"classic-hummus", "avocado-dip", "tomato-salsa", "mint-dip", "peri-peri-dip", "tandoori-dip"}
+for d in dishes:
+    cat = d["category"]
+    if GROUP[cat] == "drinks":
+        d["course"] = "drink"
+        d["temp"] = "hot" if (cat == "hot" or d["id"] in HOT_DRINKS) else "cold"
+        d["coffee"] = cat in COFFEE_CATS and d["id"] != "arabico-hot-chocolate"
+    else:
+        d["course"] = "side" if d["id"] in SIDES else ("snack" if cat == "fries" else "meal")
+        d["coffee"] = False
+    d["available"] = True
+
 data = {
     "id": "arabico",
     "name": "Arabico",
@@ -263,6 +279,7 @@ data = {
         "new": {"label": "New", "tone": "neutral"},
         "spicy": {"label": "Spicy", "tone": "neutral"},
     },
+    "groups": [{"id": "drinks", "label": "Drinks"}, {"id": "food", "label": "Food"}],
     "sections": [
         {"id": "most-loved", "label": "Most loved at {name}", "type": "tag", "match": "most-loved",
          "eyebrow": "Guest favourites", "description": "The cups and plates our regulars order again and again.",
@@ -270,18 +287,18 @@ data = {
                    "spanish-iced-latte", "peri-peri-fries", "classic-falafel-wrap", "vietnamese-iced-coffee", "alfredo-pasta"]},
         {"id": "barista-picks", "label": "Barista's Picks", "type": "tag", "match": "barista",
          "eyebrow": "From behind the bar", "description": "What our baristas are drinking this week."},
-        {"id": "matcha", "label": "Matcha", "type": "category", "match": "matcha", "eyebrow": "Whisked to order"},
-        {"id": "specialty", "label": "Specialty Coffee", "type": "category", "match": "specialty", "eyebrow": "Signature creations"},
-        {"id": "hot", "label": "Hot Coffee", "type": "category", "match": "hot", "eyebrow": "As hot as you"},
-        {"id": "cold", "label": "Cold Coffee", "type": "category", "match": "cold", "eyebrow": "If you like it cold"},
-        {"id": "teas", "label": "Teas & Coolers", "type": "category", "match": "teas", "eyebrow": "Freshly brewed"},
-        {"id": "sandwiches", "label": "Sandwiches & Toast", "type": "category", "match": "sandwiches", "eyebrow": "Between the slices"},
-        {"id": "eggs", "label": "Eggs & Rolls", "type": "category", "match": "eggs", "eyebrow": "Eggstation"},
-        {"id": "wraps", "label": "Wraps", "type": "category", "match": "wraps", "eyebrow": "It's a wrap"},
-        {"id": "bowls", "label": "Bowls & Salads", "type": "category", "match": "bowls", "eyebrow": "Comforting large plates"},
-        {"id": "pasta", "label": "Pasta", "type": "category", "match": "pasta", "eyebrow": "Fresh off the stove"},
-        {"id": "pizza", "label": "Pizza", "type": "category", "match": "pizza", "eyebrow": "Hot from the oven"},
-        {"id": "fries", "label": "Fries & Dips", "type": "category", "match": "fries", "eyebrow": "Something on the side"},
+        {"id": "matcha", "label": "Matcha", "type": "category", "match": "matcha", "group": "drinks", "eyebrow": "Whisked to order"},
+        {"id": "specialty", "label": "Specialty Coffee", "type": "category", "match": "specialty", "group": "drinks", "eyebrow": "Signature creations"},
+        {"id": "hot", "label": "Hot Coffee", "type": "category", "match": "hot", "group": "drinks", "eyebrow": "As hot as you"},
+        {"id": "cold", "label": "Cold Coffee", "type": "category", "match": "cold", "group": "drinks", "eyebrow": "If you like it cold"},
+        {"id": "teas", "label": "Teas & Coolers", "type": "category", "match": "teas", "group": "drinks", "eyebrow": "Freshly brewed"},
+        {"id": "sandwiches", "label": "Sandwiches & Toast", "type": "category", "match": "sandwiches", "group": "food", "eyebrow": "Between the slices"},
+        {"id": "eggs", "label": "Eggs & Rolls", "type": "category", "match": "eggs", "group": "food", "eyebrow": "Eggstation"},
+        {"id": "wraps", "label": "Wraps", "type": "category", "match": "wraps", "group": "food", "eyebrow": "It's a wrap"},
+        {"id": "bowls", "label": "Bowls & Salads", "type": "category", "match": "bowls", "group": "food", "eyebrow": "Comforting large plates"},
+        {"id": "pasta", "label": "Pasta", "type": "category", "match": "pasta", "group": "food", "eyebrow": "Fresh off the stove"},
+        {"id": "pizza", "label": "Pizza", "type": "category", "match": "pizza", "group": "food", "eyebrow": "Hot from the oven"},
+        {"id": "fries", "label": "Fries & Dips", "type": "category", "match": "fries", "group": "food", "eyebrow": "Something on the side"},
     ],
     "dishes": dishes,
 }

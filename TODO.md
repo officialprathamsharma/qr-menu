@@ -9,6 +9,12 @@
 - [x] Desktop gate ("scan with your phone") with a preview option
 - [x] Per-restaurant JSON config (colours + logo); real Arabico Janakpuri menu as the demo
 - [x] Egg / veg / non-veg marks; curated section order
+- [x] Compact list rows (~4–5 per screen) + featured video rails; prep-time / hot-cold / spice pills on every item
+- [x] Search with plain-language rules (no AI), quick filters (Popular, Veg, Drinks, Food), full diet filters
+- [x] Category overview + Drinks/Food groups with expandable category headings
+- [x] Tap-to-play (no touchstart), visible play/pause, autoplay switch, 8 s loading fallback to the photo
+- [x] Restaurant dashboard: items, photos/videos (resize, focus point, frame-as-photo), availability, order, categories, branding
+- [x] Supabase pilot backend: schema + RLS + media bucket (setup in supabase/README.md)
 
 ## Next: branch lock with geolocation (multi-branch restaurants)
 Goal: a licence bought for one branch only works at that branch.
@@ -21,13 +27,16 @@ Goal: a licence bought for one branch only works at that branch.
       a backend issues/validates the menu data only for licensed branch IDs, and the dashboard limits how many branches can be created
 - [ ] Optional: rotating signed table tokens in the QR (`?k=<signed>`) so screenshots of the QR expire
 
+## Pilot next steps
+- [ ] Create the Supabase project, fill in assets/js/config.js, onboard Arabico's owner
+- [ ] Guest ordering: cart → "send to kitchen" with table number → live order inbox in the dashboard (Supabase Realtime)
+- [ ] Delete orphaned media from storage when a photo/video is replaced
+- [ ] Optional AI search for questions the rules can't parse (send only the query + menu, never guest data)
+
 ## Product
-- [ ] Admin dashboard (owner-only): restaurant login, edit dishes/sections, upload photos/videos, pick colours + logo
 - [ ] Replace Arabico's placeholder descriptions/prep times/badges with the owner's real ones; shoot their own dish videos
-- [ ] Backend on a free tier (Supabase: Postgres + Auth + Storage), replacing the static JSON
 - [ ] Media pipeline: compress uploads to ~720p H.264 + poster frame (Cloudinary/Bunny free tiers, or ffmpeg in a function)
 - [ ] QR generator in the dashboard (per table, printable PDF table tents)
-- [ ] Search + dietary filters (veg only, GF, no nuts)
 - [ ] "My picks" list a guest can show the waiter → later: ordering / call waiter / bill
 - [ ] Mark dishes as sold out / time-limited (breakfast, happy hour)
 - [ ] Multi-language menus (English + Arabic/Hindi), RTL support
