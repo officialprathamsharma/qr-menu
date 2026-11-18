@@ -931,7 +931,7 @@ function dishHtml(d) {
   if (d.temp) facts.push(`<span class="fact">${d.temp === 'cold' ? `${icons.snow}Served cold` : `${icons.cup}Served hot`}</span>`);
   if (d.kcal) facts.push(`<span class="fact">${icons.bolt}${d.kcal} kcal</span>`);
   if (d.diet?.veg != null) facts.push(`<span class="fact">${vegMark(d)}${d.diet.veg ? (d.diet.vegan ? 'Vegan' : 'Vegetarian') : d.diet.egg ? 'Contains egg' : 'Non-veg'}</span>`);
-  if (d.spice > 0) facts.push(`<span class="fact"><span style="color:#f87171;display:inline-flex">${icons.flame.repeat(d.spice)}</span>${['', 'Mild', 'Medium', 'Hot'][d.spice]}</span>`);
+  if (d.spice > 0) facts.push(`<span class="fact"><span class="spice-flames">${icons.flame.repeat(d.spice)}</span>${['', 'Mild', 'Medium', 'Hot'][d.spice]}</span>`);
 
   const pairings = (d.pairings || []).map((p) => {
     const ref = p.dishId && byId(p.dishId);
