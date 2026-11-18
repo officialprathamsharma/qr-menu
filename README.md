@@ -54,6 +54,26 @@ A desktop browser shows the "scan with your phone" screen; click **Preview on th
 - Items with no photo yet (e.g. just imported) show without a thumbnail, so the list still looks tidy.
 - **Sold-out items** are greyed out with a "Sold out" tag and listed last in search results.
 
+## Table ordering (pilot)
+
+- The owner switches it on or off with the **Table ordering** switch in the dashboard's top bar (or in Orders). It
+  takes effect immediately: off means guests can only view the menu. Guests see **Add** on each item, a cart bar,
+  notes, and **Place order** (pay at the counter). After ordering they can follow the status: Sent → Preparing →
+  Ready → Served.
+- Orders go through the `place_order` database function, which re-prices every item from the published menu, rejects
+  sold-out items and limits each table to 6 orders per 10 minutes. Guests can't read anyone else's orders.
+- **Orders tab** (live): New / Preparing / Ready lanes, updated instantly over Supabase Realtime (plus a 30 s
+  safety refresh). New orders ring every 15 s until accepted, flash the browser tab title, show a desktop
+  notification when the tab is in the background, and can keep the screen awake. Print a kitchen ticket, tick
+  **Entered in POS** after punching it into Petpooja, and export the day's orders as CSV.
+- **Insights tab**: revenue, orders, average order, items sold, median time to ready, orders not yet in the POS;
+  video items' share of sales and how much more a video item sells than a photo-only item; revenue by day or hour,
+  busiest hours, top items, revenue by category, busiest tables, items nobody ordered, and the full order history
+  with CSV export. Ranges: today, yesterday, 7, 30 and 90 days.
+- **Tables & QR tab**: table numbers ("12", "1-12" or "1-8, Patio 1"), printable A4 table cards and a PNG per
+  table. With guest Wi-Fi details, each card gets a second code that joins the Wi-Fi when scanned with the camera,
+  and the menu shows a Wi-Fi button with copyable details.
+
 ## Dashboard (`/admin/`)
 
 - **Items**: search, filter by category, available/sold-out toggle, move up/down, add, edit, duplicate, delete.
@@ -65,9 +85,13 @@ A desktop browser shows the "scan with your phone" screen; click **Preview on th
     (that's all those sites publish). Needs the `import-menu` Edge Function (see supabase/README.md).
   - "Add" updates items with the same name and keeps their photos; "Replace" swaps all items but keeps branding.
 - **Item editor**:
-  - Photo upload (resized to WebP in the browser), plus tap-to-set focus point so crops keep the dish in view.
-  - Video upload (≤50 MB, with a warning above 20 MB), plus **Use frame as photo**. Uploading a video with no
-    photo creates the cover automatically.
+  - Photo upload: two WebP copies are made in the browser, a full one (≤1280 px, ~50 KB) for the dish page and a
+    card copy (short side 320 px, ~10–25 KB) that the menu list uses, so guests download about 7× less.
+    Tap-to-set focus point keeps the dish in view when cropped.
+  - Video upload: any phone clip. Before uploading, the browser re-encodes it to a phone-sized MP4 (H.264, 480p,
+    24 fps, ~1 Mbps, first 20 s, no sound), typically 1–3 MB (e.g. 4.6 MB → 1.5 MB). Uses WebCodecs (Chrome, Edge,
+    Safari 16.4+); other browsers can upload clips under 8 MB as they are. Keep the tab open while it compresses.
+    **Use frame as photo**; uploading a video with no photo creates the cover automatically.
   - Price, prep time, kcal, category, description, veg/egg/non-veg, vegan, gluten-free, contains coffee, spice,
     hot/cold, type (drink/meal/snack/side), allergens, badges, featured lists, story and chef note.
 - **Categories**: rename, subtitle, Drinks/Food group, reorder, add, delete (only when empty); edit featured-list titles.
@@ -119,6 +143,9 @@ supabase/                  schema, onboarding SQL, setup guide
 data/arabico.json          Arabico's menu (pilot restaurant)
 data/demo.json             Little Bean Café: the demo store and the "Start from sample" menu
 admin/importer.js          CSV / Excel / link import
+admin/ops.js               Orders (live), Insights, Tables & QR
+admin/media.js             photo copies + in-browser video compression
+supabase/orders.sql        orders table, place_order(), realtime
 supabase/functions/        import-menu Edge Function (Zomato / EazyDiner / Dineout)
 tools/build-demo-data.py   regenerates the demo data
 TODO.md                    roadmap

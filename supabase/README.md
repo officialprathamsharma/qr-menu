@@ -9,7 +9,8 @@ Videos use the most bandwidth. Ask owners for 720p clips under about 15 MB.
 ## One-time setup (about 10 minutes)
 
 1. Create a project at <https://supabase.com> (free plan). Pick the region closest to your guests, e.g. **Mumbai (ap-south-1)**.
-2. **SQL Editor → New query**: paste [`schema.sql`](schema.sql) and run it.
+2. **SQL Editor → New query**: paste [`schema.sql`](schema.sql) and run it. Then do the same with
+   [`orders.sql`](orders.sql) (table ordering: orders table, `place_order` function, live updates).
 3. **Project Settings → API**: copy the **Project URL** and the **anon public** key into
    [`assets/js/config.js`](../assets/js/config.js):
    ```js

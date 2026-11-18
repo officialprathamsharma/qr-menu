@@ -4,7 +4,7 @@
    Flags: ?preview → skip the desktop gate
           ?source=local → read the dashboard's unpublished draft in this browser
    ========================================================== */
-import { loadMenu, withResolvedMedia } from './store.js';
+import { loadMenu, withResolvedMedia, supabaseEnabled, getSupabase } from './store.js';
 import { parseQuery, mergeFilters, hasFilters, matchDish, scoreDish } from './search.js';
 
 const params = new URLSearchParams(location.search);
@@ -28,6 +28,7 @@ const pref = {
 };
 
 let data;
+let menuSource = 'static'; // 'supabase' | 'local' | 'static' — ordering only works on a published (Supabase) menu
 let fmtPrice = (n) => `₹${n}`;
 const catById = new Map();
 const groupById = new Map();
@@ -60,6 +61,10 @@ const icons = {
   sliders: svg('<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>'),
   snow: svg('<path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9"/>'),
   cup: svg('<path d="M5 9h11v5a5 5 0 0 1-5 5h-1a5 5 0 0 1-5-5zM16 10h1.5a2.5 2.5 0 0 1 0 5H16M8 3v3M12 3v3"/>'),
+  bag: svg('<path d="M5 8h14l-1 12H6zM9 8V6a3 3 0 0 1 6 0v2"/>'),
+  wifi: svg('<path d="M2 9a15 15 0 0 1 20 0M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1" fill="currentColor"/>'),
+  check: svg('<path d="m5 12 5 5 9-10"/>'),
+  copy: svg('<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>'),
   list: svg('<path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01" stroke-width="2.2"/>'),
   star: svg('<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" fill="currentColor" stroke="none"/>'),
 };
@@ -92,8 +97,9 @@ const isDesktop = () => matchMedia('(hover: hover) and (pointer: fine)').matches
 
 async function init() {
   try {
-    const { data: raw } = await loadMenu(slug, source);
-    data = await withResolvedMedia(raw);
+    const loaded = await loadMenu(slug, source);
+    menuSource = loaded.source;
+    data = await withResolvedMedia(loaded.data);
   } catch {
     app.innerHTML = `<div class="gate"><div class="gate-card"><h1>Menu not found</h1><p>Please ask a member of staff for help.</p></div></div>`;
     return;
@@ -173,7 +179,10 @@ function renderMenu() {
   app.innerHTML = `
     <header class="masthead">
       <div class="brand">${logoHtml()}<div class="brand-text"><h1>${esc(data.name)}</h1>${data.tagline ? `<p>${esc(data.tagline)}</p>` : ''}</div></div>
-      ${tableNo ? `<span class="table-chip">${icons.dish}Table ${esc(tableNo)}</span>` : ''}
+      <div class="mast-chips">
+        ${data.wifi?.ssid ? `<button type="button" class="table-chip" id="wifi-chip" aria-haspopup="dialog">${icons.wifi}Wi-Fi</button>` : ''}
+        ${tableNo ? `<span class="table-chip">${icons.dish}Table ${esc(tableNo)}</span>` : ''}
+      </div>
     </header>
     <div class="toolbar">
       <form class="search" role="search" onsubmit="return false">
@@ -189,6 +198,7 @@ function renderMenu() {
     </div>
     <main id="feed" class="feed" aria-live="polite"></main>
     <button type="button" class="menu-fab" id="menu-fab" aria-haspopup="dialog" hidden>${icons.list}<span>Menu</span></button>
+    <div class="cartbar" id="cartbar" hidden><button type="button" id="open-cart" aria-haspopup="dialog"></button></div>
     <footer class="foot">
       ${data.footerNote ? `${esc(data.footerNote)}<br>` : ''}
       Powered by <strong>QR Menu</strong>
@@ -230,6 +240,10 @@ function renderMenu() {
   });
   $('#open-filters').onclick = openFilters;
   $('#menu-fab').onclick = openCategories;
+  $('#open-cart').onclick = () => (cartCount() ? openCart() : openOrderStatus());
+  $('#wifi-chip')?.addEventListener('click', openWifi);
+  loadCart();
+  syncCartBar();
   const toolbar = $('.toolbar');
   new ResizeObserver(() => document.documentElement.style.setProperty('--toolbar-h', `${toolbar.offsetHeight}px`)).observe(toolbar);
   addEventListener('scroll', onScrollFab, { passive: true });
@@ -583,7 +597,7 @@ function mediaHtml(d, cls, { eager = false, w = 320 } = {}) {
   }
   return `
     <div class="${cls}${hasVid ? ' has-video' : ''}">
-      ${d.image ? `<img src="${esc(sizedImage(d.image, w))}" alt="" loading="${eager ? 'eager' : 'lazy'}"${eager ? ' fetchpriority="high"' : ''} decoding="async" ${imgLoaded} style="object-position:${focus}">` : ''}
+      ${d.image ? `<img src="${esc(w <= 400 && d.thumb ? d.thumb : sizedImage(d.image, w))}" alt="" loading="${eager ? 'eager' : 'lazy'}"${eager ? ' fetchpriority="high"' : ''} decoding="async" ${imgLoaded} style="object-position:${focus}">` : ''}
       ${hasVid ? `
         <video muted loop playsinline preload="none" data-src="${esc(sizedVideo(d.video, true))}" aria-hidden="true" tabindex="-1" style="object-position:${focus}"></video>
         <span class="vspin" aria-hidden="true"></span>` : ''}
@@ -601,7 +615,7 @@ function featureCard(d, i) {
           <h3>${vegMark(d)}<button type="button" class="name-btn">${esc(d.name)}</button></h3>
           <span class="price">${esc(fmtPrice(d.price))}</span>
         </div>
-        <div class="pills">${pills(d)}</div>
+        <div class="pills">${pills(d)}${addControl(d)}</div>
       </div>
     </article>`;
 }
@@ -622,7 +636,7 @@ function wideCard(d) {
           <span class="price">${esc(fmtPrice(d.price))}</span>
         </div>
         ${d.description ? `<p class="desc">${esc(d.description)}</p>` : ''}
-        <div class="pills">${pills(d)}</div>
+        <div class="pills">${pills(d)}${addControl(d)}</div>
       </div>
     </article>`;
 }
@@ -638,12 +652,14 @@ function rowCard(d) {
         <p class="desc">${esc(d.description)}</p>
         <div class="row-foot"><span class="price">${esc(fmtPrice(d.price))}</span>${pills(d)}</div>
       </div>
-      ${media ? mediaHtml(d, 'row-media') : ''}
+      ${media || canOrder() ? `<div class="row-side">${media ? mediaHtml(d, 'row-media') : ''}${addControl(d)}</div>` : ''}
     </article>`;
 }
 
 function onFeedClick(e) {
   const t = e.target;
+  const add = t.closest('[data-add]');
+  if (add) return onAddClick(e, add);
   const cat = t.closest('[data-cat]');
   if (cat) return toggleCategory(cat.dataset.cat);
   const jump = t.closest('[data-jump]');
@@ -828,6 +844,9 @@ function closeSheet(fromPop = false) {
   setTimeout(stopSheetVideo, 380);
   if (!fromPop && history.state?.sheet) history.back();
   if (sheet.dataset.kind === 'filters') renderFeed(true);
+  if (sheet.dataset.kind === 'cart') { state.orderNote = $('#order-note')?.value ?? state.orderNote; state.orderTable = $('#order-table')?.value ?? state.orderTable; }
+  clearInterval(statusTimer);
+  syncCartBar();
   setTimeout(pickActive, 60);
   onScrollFab();
 }
@@ -841,6 +860,12 @@ function bindSheet() {
     if (e.target.closest('[data-close]')) return closeSheet();
     const pair = e.target.closest('[data-open]');
     if (pair) return openDish(pair.dataset.open, true);
+    const add = e.target.closest('[data-add]');
+    if (add) return onAddClick(e, add);
+    if (e.target.closest('#place-order')) return placeOrder();
+    if (e.target.closest('[data-reorder]')) { closeSheet(); return; }
+    const cp = e.target.closest('[data-copy]');
+    if (cp) return copyText(cp.dataset.copy, cp);
     const go = e.target.closest('[data-goto]');
     if (go) {
       closeSheet();
@@ -911,7 +936,7 @@ function dishHtml(d) {
   const pairings = (d.pairings || []).map((p) => {
     const ref = p.dishId && byId(p.dishId);
     const inner = `
-      ${ref ? `<img src="${esc(sizedImage(ref.image, 160))}" alt="" loading="lazy">` : ''}
+      ${ref ? `<img src="${esc(ref.thumb || sizedImage(ref.image, 160))}" alt="" loading="lazy">` : ''}
       <span class="pair-text">
         <span class="pair-kind">${esc(p.kind || 'Pairing')}</span>
         <span class="pair-name">${esc(ref ? ref.name : p.name)}</span>
@@ -941,7 +966,202 @@ function dishHtml(d) {
       ${d.chefNote ? `<blockquote>“${esc(d.chefNote)}”<cite>— ${esc(data.chef || 'The Chef')}</cite></blockquote>` : ''}
       ${pairings ? `<h4>Pairs well with</h4><ul class="pairings">${pairings}</ul>` : ''}
       ${d.allergens?.length ? `<p class="allergens">Contains: ${esc(d.allergens.join(', '))}. Please tell our team about any allergies.</p>` : ''}
+    </div>
+    ${canOrder() && !soldOut(d) ? `<div class="sheet-add">${addControl(d, true)}</div>` : ''}`;
+}
+
+/* ==========================================================
+   Table ordering
+   - Shown only when the owner has switched ordering on and the menu is the published (Supabase) one.
+   - The cart lives in this phone (localStorage) per restaurant. Placing an order calls place_order(),
+     which re-prices every item from the published menu on the server.
+   - After ordering, the guest can follow the status (Received → Preparing → Ready).
+   ========================================================== */
+const cart = new Map(); // dishId -> qty
+const canOrder = () => Boolean(data?.ordering?.enabled) && menuSource === 'supabase' && supabaseEnabled();
+const cartKey = `cart:${slug}`;
+const lastKey = `order:${slug}`;
+const cartCount = () => [...cart.values()].reduce((a, b) => a + b, 0);
+const cartTotal = () => [...cart].reduce((sum, [id, q]) => sum + (byId(id)?.price || 0) * q, 0);
+
+function loadCart() {
+  try {
+    const saved = JSON.parse(pref.get(cartKey) || '{}');
+    for (const [id, q] of Object.entries(saved)) if (byId(id) && !soldOut(byId(id)) && q > 0) cart.set(id, Math.min(20, q));
+  } catch { /* ignore */ }
+}
+function saveCart() { pref.set(cartKey, JSON.stringify(Object.fromEntries(cart))); }
+
+function addControl(d, big = false) {
+  if (!canOrder() || soldOut(d)) return '';
+  const q = cart.get(d.id) || 0;
+  const inner = q
+    ? `<button type="button" data-act="dec" aria-label="Remove one ${esc(d.name)}">−</button><span aria-live="polite">${q}</span><button type="button" data-act="inc" aria-label="Add one more ${esc(d.name)}">+</button>`
+    : `<button type="button" data-act="inc" class="add-first" aria-label="Add ${esc(d.name)} to your order">${big ? `Add to order · ${esc(fmtPrice(d.price))}` : 'Add'}</button>`;
+  return `<span class="add${q ? ' has' : ''}${big ? ' big' : ''}" data-add="${esc(d.id)}">${inner}</span>`;
+}
+
+function onAddClick(e, el) {
+  e.stopPropagation();
+  const btn = e.target.closest('[data-act]');
+  if (!btn) return;
+  const id = el.dataset.add;
+  const q = (cart.get(id) || 0) + (btn.dataset.act === 'inc' ? 1 : -1);
+  if (q <= 0) cart.delete(id);
+  else cart.set(id, Math.min(20, q));
+  saveCart();
+  const d = byId(id);
+  for (const ctl of $$(`[data-add="${CSS.escape(id)}"]`)) ctl.outerHTML = addControl(d, ctl.classList.contains('big'));
+  if ($('#sheet').dataset.kind === 'cart' && state.sheetOpen) refreshCartSheet();
+  syncCartBar();
+}
+
+function lastOrder() {
+  try {
+    const o = JSON.parse(pref.get(lastKey) || 'null');
+    return o && Date.now() - o.at < 4 * 3600e3 ? o : null; // forget after 4 hours
+  } catch { return null; }
+}
+
+const STATUS = {
+  new: ['Sent to the counter', 'Waiting for the team to confirm.'],
+  accepted: ['Being prepared', 'The kitchen has your order.'],
+  ready: ['Ready', 'Your order is on its way to your table.'],
+  served: ['Served', 'Enjoy! Order again any time.'],
+  cancelled: ['Cancelled', 'Please speak to our staff.'],
+};
+
+function syncCartBar() {
+  const bar = $('#cartbar');
+  if (!bar) return;
+  const n = cartCount();
+  const last = lastOrder();
+  const showStatus = !n && last && !['served', 'cancelled'].includes(last.status);
+  bar.hidden = !(canOrder() && (n || showStatus));
+  document.body.classList.toggle('has-cart', !bar.hidden);
+  if (bar.hidden) return;
+  $('#open-cart').innerHTML = n
+    ? `<span class="cb-count">${n}</span><span class="cb-label">${n === 1 ? 'item' : 'items'} · ${esc(fmtPrice(cartTotal()))}</span><span class="cb-go">View order ${icons.arrow}</span>`
+    : `<span class="cb-label">Order #${esc(last.number)} · ${esc(STATUS[last.status]?.[0] || 'Sent')}</span><span class="cb-go">Track ${icons.arrow}</span>`;
+}
+
+function cartHtml() {
+  const lines = [...cart].map(([id, q]) => ({ d: byId(id), q })).filter((x) => x.d);
+  if (!lines.length) return `<div class="sheet-body cart"><h2 id="sheet-title">Your order</h2><p class="muted">Your order is empty. Tap <b>Add</b> on any item.</p></div>`;
+  return `
+    <div class="sheet-body cart">
+      <h2 id="sheet-title">Your order</h2>
+      <ul class="cart-lines">${lines.map(({ d, q }) => `
+        <li><span class="cl-name">${vegMark(d)}${esc(d.name)}</span>${addControl(d)}<span class="cl-price">${esc(fmtPrice(d.price * q))}</span></li>`).join('')}
+      </ul>
+      <div class="cart-total"><span>Total</span><strong>${esc(fmtPrice(cartTotal()))}</strong></div>
+      <label class="cart-field">Notes for the kitchen <small>(optional)</small>
+        <textarea id="order-note" rows="2" maxlength="300" placeholder="Less sugar, no onion, extra hot…">${esc(state.orderNote || '')}</textarea></label>
+      ${tableNo ? `<p class="cart-table">${icons.dish}Table ${esc(tableNo)}</p>` : `
+        <label class="cart-field">Table number<input id="order-table" inputmode="numeric" maxlength="6" value="${esc(state.orderTable || '')}" placeholder="e.g. 7"></label>`}
+      <p class="cart-err" id="order-err" role="alert"></p>
+      <button type="button" class="btn place" id="place-order">Place order · ${esc(fmtPrice(cartTotal()))}</button>
+      <p class="cart-foot">You'll pay at the counter. ${data.footerNote ? esc(data.footerNote) : ''}</p>
     </div>`;
+}
+
+function openCart() { openSheet(cartHtml(), { kind: 'cart' }); }
+function refreshCartSheet() {
+  state.orderNote = $('#order-note')?.value ?? state.orderNote;
+  state.orderTable = $('#order-table')?.value ?? state.orderTable;
+  const scroll = $('#sheet .sheet-scroll');
+  const top = scroll.scrollTop;
+  scroll.innerHTML = cartHtml();
+  scroll.scrollTop = top;
+}
+
+async function placeOrder() {
+  const btn = $('#place-order');
+  const err = $('#order-err');
+  const table = tableNo || $('#order-table')?.value.trim();
+  if (!table) { err.textContent = 'Please enter your table number.'; $('#order-table')?.focus(); return; }
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+  err.textContent = '';
+  try {
+    const sb = await getSupabase();
+    const { data: res, error } = await sb.rpc('place_order', {
+      p_slug: slug,
+      p_table: table,
+      p_items: [...cart].map(([id, qty]) => ({ id, qty })),
+      p_note: $('#order-note')?.value || null,
+    });
+    if (error) throw new Error(error.message.replace(/^.*?:\s*/, '') || 'Could not send your order.');
+    pref.set(lastKey, JSON.stringify({ id: res.id, number: res.number, total: res.total, status: 'new', at: Date.now() }));
+    cart.clear();
+    saveCart();
+    state.orderNote = '';
+    $$('[data-add]').forEach((ctl) => { ctl.outerHTML = addControl(byId(ctl.dataset.add), ctl.classList.contains('big')); });
+    syncCartBar();
+    openOrderStatus(true);
+  } catch (e) {
+    err.textContent = navigator.onLine === false ? "You're offline. Check your connection and try again." : e.message;
+    btn.disabled = false;
+    btn.textContent = `Place order · ${fmtPrice(cartTotal())}`;
+  }
+}
+
+let statusTimer;
+function statusHtml(o) {
+  const [title, sub] = STATUS[o.status] || STATUS.new;
+  const steps = ['new', 'accepted', 'ready', 'served'];
+  const at = steps.indexOf(o.status);
+  return `
+    <div class="sheet-body order-status">
+      <p class="eyebrow">Order #${esc(o.number)}${tableNo ? ` · Table ${esc(tableNo)}` : ''}</p>
+      <h2 id="sheet-title">${esc(title)}</h2>
+      <p class="muted">${esc(sub)}</p>
+      ${o.status === 'cancelled' ? '' : `<ol class="steps">${['Sent', 'Preparing', 'Ready', 'Served'].map((l, i) => `<li class="${i <= at ? 'done' : ''}">${i <= at ? icons.check : ''}<span>${l}</span></li>`).join('')}</ol>`}
+      <p class="muted small">Total ${esc(fmtPrice(o.total))} · pay at the counter</p>
+      <button type="button" class="btn ghost" data-reorder>Back to the menu</button>
+    </div>`;
+}
+
+function openOrderStatus(replace = false) {
+  const o = lastOrder();
+  if (!o) return;
+  openSheet(statusHtml(o), { kind: 'status', replace });
+  clearInterval(statusTimer);
+  const poll = async () => {
+    if (!state.sheetOpen || $('#sheet').dataset.kind !== 'status') return clearInterval(statusTimer);
+    if (document.hidden) return;
+    try {
+      const sb = await getSupabase();
+      const { data: st } = await sb.rpc('order_status', { p_id: o.id });
+      if (st?.status && st.status !== o.status) {
+        o.status = st.status;
+        pref.set(lastKey, JSON.stringify(o));
+        $('#sheet .sheet-scroll').innerHTML = statusHtml(o);
+        syncCartBar();
+        if (navigator.vibrate && navigator.userActivation?.hasBeenActive) navigator.vibrate(120);
+      }
+      if (['served', 'cancelled'].includes(o.status)) clearInterval(statusTimer);
+    } catch { /* try again next tick */ }
+  };
+  statusTimer = setInterval(poll, 8000);
+  poll();
+}
+
+/* ---------- Wi-Fi details ---------- */
+function openWifi() {
+  const w = data.wifi;
+  openSheet(`
+    <div class="sheet-body wifi">
+      <h2 id="sheet-title">Free Wi-Fi</h2>
+      <p class="muted">Tip: the Wi-Fi code on your table card joins automatically. Scan it with your camera.</p>
+      <dl>
+        <div><dt>Network</dt><dd>${esc(w.ssid)}</dd><button type="button" class="btn ghost sm" data-copy="${esc(w.ssid)}">${icons.copy}Copy</button></div>
+        ${w.password ? `<div><dt>Password</dt><dd>${esc(w.password)}</dd><button type="button" class="btn ghost sm" data-copy="${esc(w.password)}">${icons.copy}Copy</button></div>` : '<div><dt>Password</dt><dd>None (open network)</dd></div>'}
+      </dl>
+    </div>`, { kind: 'wifi' });
+}
+async function copyText(text, btn) {
+  try { await navigator.clipboard.writeText(text); btn.innerHTML = `${icons.check}Copied`; } catch { btn.textContent = 'Press and hold to copy'; }
 }
 
 /* ---------- Filter sheet ---------- */

@@ -413,3 +413,85 @@ blockquote cite { display: block; margin-top: 10px; font: 500 12px var(--sans); 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* ---------- Table ordering ---------- */
+.mast-chips { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+button.table-chip { cursor: pointer; color: var(--text); }
+.row-side { display: flex; flex-direction: column; align-items: center; gap: 0; }
+.row-side .add { margin-top: -16px; position: relative; z-index: 3; }
+.row-side .row-media + .add { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5); }
+.row.no-media:has(.row-side) { grid-template-columns: 1fr auto; }
+.row.no-media .row-side .add { margin-top: 0; }
+.add {
+  display: inline-flex; align-items: center; height: 32px; border-radius: 10px; overflow: hidden; flex: none;
+  background: var(--surface); border: 1px solid color-mix(in srgb, var(--primary) 70%, transparent); color: var(--primary);
+  font-weight: 700; font-size: 13px;
+}
+.add button { height: 100%; min-width: 32px; padding: 0 10px; color: inherit; font: inherit; }
+.add .add-first { padding: 0 20px; letter-spacing: 0.04em; text-transform: uppercase; }
+.add.has { background: var(--primary); color: var(--on-primary); border-color: transparent; }
+.add.has span { min-width: 18px; text-align: center; font-variant-numeric: tabular-nums; }
+.feature .pills .add { margin-left: auto; }
+.add.big { height: 48px; width: 100%; border-radius: 14px; font-size: 15px; justify-content: space-between; }
+.add.big .add-first { width: 100%; text-transform: none; letter-spacing: 0; background: var(--primary); color: var(--on-primary); }
+.add.big button { min-width: 56px; font-size: 20px; }
+.sheet-add { position: sticky; bottom: 0; padding: 12px 20px calc(12px + var(--safe-bottom)); background: linear-gradient(transparent, var(--surface) 30%); }
+
+.cartbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 31; padding: 10px 14px calc(10px + var(--safe-bottom)); pointer-events: none; }
+body.framed .cartbar { max-width: 420px; margin: 0 auto; }
+.cartbar button {
+  pointer-events: auto; width: 100%; max-width: 520px; margin: 0 auto; height: 54px; border-radius: 16px; padding: 0 16px;
+  display: flex; align-items: center; gap: 10px; background: var(--primary); color: var(--on-primary); font-weight: 700; font-size: 15px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6); animation: cb-in 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.cb-count { min-width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; background: rgba(0, 0, 0, 0.18); }
+.cb-label { flex: 1; text-align: left; }
+.cb-go { display: inline-flex; align-items: center; gap: 6px; }
+.cb-go svg { width: 16px; height: 16px; }
+@keyframes cb-in { from { transform: translateY(80px); } }
+body.has-cart .menu-fab { bottom: calc(84px + var(--safe-bottom)); }
+body.has-cart .foot { padding-bottom: calc(110px + var(--safe-bottom)); }
+
+.cart h2, .order-status h2, .wifi h2 { font: italic 500 26px/1.2 var(--serif); }
+.muted { color: var(--muted); }
+.small { font-size: 12.5px; }
+.cart-lines { list-style: none; margin-top: 14px; }
+.cart-lines li { display: grid; grid-template-columns: 1fr auto 76px; gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.cl-name { display: flex; align-items: flex-start; gap: 8px; font-weight: 600; font-size: 15px; }
+.cl-name .vnv { margin-top: 3px; width: 13px; height: 13px; }
+.cl-price { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+.cart-total { display: flex; justify-content: space-between; padding: 14px 0; font-size: 16px; }
+.cart-total strong { color: var(--primary); font-size: 18px; }
+.cart-field { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; font-size: 13px; color: var(--muted); }
+.cart-field small { color: var(--faint); }
+.cart-field textarea, .cart-field input {
+  background: var(--surface-2); border: 1px solid var(--line); border-radius: 12px; color: var(--text);
+  font: 400 16px var(--sans); padding: 10px 12px; resize: vertical;
+}
+.cart-table { display: flex; align-items: center; gap: 8px; margin-top: 12px; color: var(--muted); font-size: 14px; }
+.cart-table svg { width: 16px; height: 16px; color: var(--primary); }
+.cart-err { color: #f87171; font-size: 13px; min-height: 18px; margin-top: 10px; }
+.btn.place { width: 100%; height: 52px; margin-top: 4px; font-size: 16px; }
+.btn.place:disabled { opacity: 0.6; }
+.cart-foot { font-size: 12px; color: var(--faint); text-align: center; margin-top: 10px; line-height: 1.5; }
+
+.order-status { padding-bottom: 10px; }
+.order-status h2 { margin-top: 6px; }
+.steps { list-style: none; display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 22px 0 18px; }
+.steps li { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12px; color: var(--faint); position: relative; }
+.steps li::before { content: ''; width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--line); }
+.steps li svg { position: absolute; top: 5px; width: 16px; height: 16px; color: var(--on-primary); }
+.steps li.done { color: var(--text); }
+.steps li.done::before { background: var(--primary); border-color: var(--primary); }
+.order-status .btn { width: 100%; margin-top: 14px; }
+
+.wifi dl { margin-top: 16px; display: flex; flex-direction: column; gap: 10px; }
+.wifi dl > div { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 10px; padding: 12px 14px; border-radius: 14px; background: var(--surface-2); }
+.wifi dt { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); grid-column: 1; }
+.wifi dd { font-size: 17px; font-weight: 600; word-break: break-all; grid-column: 1; }
+.wifi dl .btn { grid-column: 2; grid-row: 1 / span 2; }
+.btn.sm { height: 34px; padding: 0 12px; font-size: 13px; }
+.btn.ghost { background: var(--surface-2); color: var(--text); border: 1px solid var(--line); }
+.wifi .btn { margin-top: 0; border-radius: 10px; }
+.btn.place, .order-status .btn { justify-content: center; border-radius: 14px; }
+.mast-chips .table-chip svg { width: 15px; height: 15px; color: var(--primary); }

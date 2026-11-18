@@ -8,6 +8,8 @@ import {
   supabaseEnabled, getSupabase, loadMenu, loadStatic, saveLocal, clearLocal, saveSupabase, uploadMedia, resolveMedia,
 } from '../assets/js/store.js';
 import { readSpreadsheet, rowsToItems, applyImport, TEMPLATE_CSV } from './importer.js';
+import { startOrders, renderOrders, renderInsights, renderTables } from './ops.js';
+import { makePhotoSet, compressVideo, canCompressVideo } from './media.js';
 import { CONFIG } from '../assets/js/config.js';
 
 const root = document.getElementById('admin');
@@ -28,13 +30,13 @@ const authLink = new URLSearchParams(location.hash.slice(1));
 const linkType = authLink.get('type');
 const linkError = authLink.get('error_description');
 let dirty = false;
-let view = 'items';
+let view = supabaseEnabled() ? 'orders' : 'items';
 let itemSearch = '';
 let itemCat = 'all';
 let editing = null; // { draft, isNew }
 
-const MAX_VIDEO_MB = 50;
-const WARN_VIDEO_MB = 20;
+const MAX_VIDEO_MB = 300; // the original file the owner picks; it's compressed before upload
+const MAX_UNCOMPRESSED_MB = 8; // if this browser can't compress, only small files are accepted as-is
 
 /* ---------- Icons ---------- */
 const svg = (p) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
@@ -112,14 +114,12 @@ async function canvasToBlob(canvas) {
   if (webp && webp.type === 'image/webp') return webp;
   return new Promise((r) => canvas.toBlob(r, 'image/jpeg', 0.85));
 }
-async function frameFromVideo(video) {
-  if (!video.videoWidth) throw new Error('Video is not loaded yet');
-  const scale = Math.min(1, 1280 / Math.max(video.videoWidth, video.videoHeight));
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.round(video.videoWidth * scale);
-  canvas.height = Math.round(video.videoHeight * scale);
-  canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
-  return canvasToBlob(canvas); // throws SecurityError for videos hosted without CORS
+
+async function savePhotoSet(d, full, thumb) {
+  const target = MODE === 'live' ? 'supabase' : 'local';
+  const [img, th] = await Promise.all([uploadMedia(slug, full, 'photos', target), uploadMedia(slug, thumb, 'photos', target)]);
+  d.image = img;
+  d.thumb = th;
 }
 
 /* ==========================================================
@@ -276,6 +276,11 @@ function renderApp() {
       <span class="product">QR Menu <span>Dashboard</span></span>
       <span class="rest">${esc(menu.name)}</span>
       <span class="mode ${MODE === 'live' ? 'live' : ''}">${MODE === 'live' ? 'Live' : 'Demo · saved in this browser'}</span>
+      <label class="order-switch" title="On: guests can order from their table. Off: guests can only view the menu.">
+        <input type="checkbox" id="ordering-toggle" role="switch" ${menu.ordering?.enabled ? 'checked' : ''}>
+        <span class="os-track" aria-hidden="true"></span>
+        <span class="os-label">Table ordering <b>${menu.ordering?.enabled ? 'On' : 'Off'}</b></span>
+      </label>
       <div class="top-actions">
         <a class="btn ghost sm" id="preview-link" href="${esc(previewUrl())}" target="_blank" rel="noopener">${I.ext}Preview</a>
         <button class="btn sm" id="publish" disabled>All changes saved</button>
@@ -288,12 +293,13 @@ function renderApp() {
       </div>
     </header>
     <nav class="tabs" role="tablist">
-      ${[['items', 'Items'], ['categories', 'Categories'], ['branding', 'Branding']]
+      ${[['orders', 'Orders'], ['items', 'Items'], ['categories', 'Categories'], ['branding', 'Branding'], ['insights', 'Insights'], ['tables', 'Tables & QR']]
         .map(([id, l]) => `<button class="tab" role="tab" data-view="${id}" aria-selected="${view === id}">${l}</button>`).join('')}
     </nav>
     <main class="view" id="view"></main>`;
 
   $('#publish').onclick = publish;
+  $('#ordering-toggle').onchange = (e) => setOrdering(e.target.checked);
   $('.tabs').onclick = (e) => {
     const t = e.target.closest('[data-view]');
     if (!t) return;
@@ -318,13 +324,62 @@ function renderApp() {
   });
   $('#import').onchange = importJson;
   setDirty(dirty);
-  renderView();
+  initOps().then(() => renderView());
 }
 
 function renderView() {
-  if (view === 'items') renderItems();
+  const v = $('#view');
+  v.onclick = null; v.onchange = null; v.oninput = null; // the ops views attach their own handlers
+  if (view === 'orders') renderOrders(v);
+  else if (view === 'items') renderItems();
   else if (view === 'categories') renderCategories();
+  else if (view === 'insights') renderInsights(v);
+  else if (view === 'tables') renderTables(v);
   else renderBranding();
+}
+
+/* Table ordering on/off. Takes effect immediately: only this one setting is changed in the published menu,
+   so other unpublished edits stay as drafts. Off = guests can only view the menu. */
+async function setOrdering(on) {
+  const input = $('#ordering-toggle');
+  input.disabled = true;
+  try {
+    if (MODE === 'live') {
+      const sb = await getSupabase();
+      const { data: row, error } = await sb.from('menus').select('data').eq('slug', slug).single();
+      if (error) throw error;
+      const published = row?.data && Object.keys(row.data).length ? row.data : structuredClone(menu);
+      published.ordering = { ...(published.ordering || {}), enabled: on };
+      await saveSupabase(slug, published);
+    }
+    menu.ordering = { ...(menu.ordering || {}), enabled: on };
+    if (MODE !== 'live') setDirty(true);
+    toast(on ? 'Table ordering is ON. Guests can order from their table.' : 'Table ordering is OFF. Guests can only view the menu.');
+  } catch (err) {
+    input.checked = !on;
+    toast(`Couldn't change ordering: ${err.message || err}`, true);
+  } finally {
+    input.disabled = false;
+    $('.os-label b').textContent = menu.ordering?.enabled ? 'On' : 'Off';
+    if (view === 'orders') renderView();
+  }
+}
+
+// Live orders keep running on every tab, so new orders ring and notify wherever the owner is.
+let opsStarted = false;
+async function initOps() {
+  const ctx = {
+    sb: MODE === 'live' ? await getSupabase() : null,
+    slug,
+    mode: MODE,
+    menu: () => menu,
+    fmt,
+    toast,
+    setDirty,
+    setOrdering: (on) => { const t = $('#ordering-toggle'); t.checked = on; return setOrdering(on); },
+    onOrdersChange: () => { if (view === 'orders' && !$('.drawer')) renderOrders($('#view')); },
+  };
+  if (!opsStarted) { opsStarted = true; await startOrders(ctx); }
 }
 
 async function publish() {
@@ -663,7 +718,7 @@ function openEditor(dish) {
             <p class="progress" id="photo-progress" aria-live="polite"></p>
           </div>
           <div class="media-card">
-            <h4>Video <span class="hint">Optional · ≤${MAX_VIDEO_MB} MB</span></h4>
+            <h4>Video <span class="hint">Optional · compressed to 480p, first 20 s</span></h4>
             <div class="video-box" id="video-box">${videoInner(d)}</div>
             <div class="media-actions">
               <label class="btn ghost sm">${d.video ? 'Replace' : 'Upload'}<input type="file" accept="video/mp4,video/webm,video/quicktime" id="video-file" class="sr-only"></label>
@@ -673,7 +728,7 @@ function openEditor(dish) {
             <p class="progress" id="video-progress" aria-live="polite"></p>
           </div>
         </div>
-        <p class="hint">Best results: landscape 4:3 or 16:9, bright, the dish in the centre. Videos: 8–20 s loops, MP4 (H.264), no sound needed — guests see them muted.</p>
+        <p class="hint">Best results: landscape 4:3 or 16:9, bright, the dish in the centre. Videos: any phone clip works. It's shrunk here to a 480p, ≤20 s silent loop (about 1.5–3 MB) before uploading, so it loads fast on mobile data.</p>
       </fieldset>
 
       <fieldset class="fs">
@@ -774,18 +829,18 @@ function openEditor(dish) {
     const p = $('#photo-progress', drawer);
     try {
       p.textContent = 'Optimising photo…';
-      const blob = await compressImage(file);
-      p.textContent = `Uploading (${Math.round(blob.size / 1024)} KB)…`;
-      d.image = await uploadMedia(slug, blob, 'photos', MODE === 'live' ? 'supabase' : 'local');
+      const { full, thumb } = await makePhotoSet(file);
+      p.textContent = `Uploading (${Math.round(full.size / 1024)} KB + ${Math.round(thumb.size / 1024)} KB card copy)…`;
+      await savePhotoSet(d, full, thumb);
       d.focus = '50% 50%';
-      p.textContent = 'Photo ready.';
+      p.textContent = `Photo ready · card copy ${Math.round(thumb.size / 1024)} KB.`;
       refreshPhoto();
     } catch (err) {
       p.textContent = '';
       toast(`Photo upload failed: ${err.message || err}`, true);
     }
   };
-  $('#photo-remove', drawer).onclick = () => { d.image = ''; delete d.focus; refreshPhoto(); };
+  $('#photo-remove', drawer).onclick = () => { d.image = ''; delete d.thumb; delete d.focus; refreshPhoto(); };
 
   // ---- Video ----
   const refreshVideo = () => {
@@ -798,15 +853,26 @@ function openEditor(dish) {
     const file = e.target.files[0];
     e.target.value = '';
     if (!file) return;
-    if (!/^video\/(mp4|webm|quicktime)$/.test(file.type)) return toast('Please choose an MP4, WebM or MOV video.', true);
+    if (!/^video\//.test(file.type)) return toast('Please choose a video file (MP4 or MOV from your phone works).', true);
     const mb = file.size / 1048576;
-    if (mb > MAX_VIDEO_MB) return toast(`That video is ${mb.toFixed(0)} MB. The limit is ${MAX_VIDEO_MB} MB — trim it or export at 720p.`, true);
+    if (mb > MAX_VIDEO_MB) return toast(`That video is ${mb.toFixed(0)} MB. Please trim it to a short clip (under ${MAX_VIDEO_MB} MB).`, true);
     const p = $('#video-progress', drawer);
-    if (mb > WARN_VIDEO_MB) toast(`Heads-up: ${mb.toFixed(0)} MB is large and will load slowly on mobile data. 720p, under 15 MB is ideal.`);
     try {
-      p.textContent = `Uploading ${mb.toFixed(1)} MB…`;
-      d.video = await uploadMedia(slug, file, 'videos', MODE === 'live' ? 'supabase' : 'local');
-      p.textContent = 'Video ready.';
+      let upload = file;
+      if (canCompressVideo()) {
+        // Shrink it for phones before it leaves this computer: 480p, first 20 s, no sound.
+        p.textContent = 'Compressing for phones… 0%';
+        const out = await compressVideo(file, { onProgress: (f) => { p.textContent = `Compressing for phones… ${Math.round(f * 100)}% · keep this tab open`; } });
+        upload = out.blob;
+        p.textContent = `Compressed ${mb.toFixed(1)} MB → ${(upload.size / 1048576).toFixed(1)} MB (${out.width}×${out.height}, ${out.seconds} s). Uploading…`;
+      } else if (mb > MAX_UNCOMPRESSED_MB) {
+        p.textContent = '';
+        return toast(`This browser can't compress video. Open the dashboard in Chrome, Edge or Safari, or upload a clip under ${MAX_UNCOMPRESSED_MB} MB.`, true);
+      } else {
+        p.textContent = `Uploading ${mb.toFixed(1)} MB…`;
+      }
+      d.video = await uploadMedia(slug, upload, 'videos', MODE === 'live' ? 'supabase' : 'local');
+      p.textContent = upload === file ? 'Video ready.' : `Video ready · ${(upload.size / 1048576).toFixed(1)} MB (was ${mb.toFixed(1)} MB).`;
       refreshVideo();
       if (!d.image) {
         // Auto-create a cover photo from the video.
@@ -826,9 +892,9 @@ function openEditor(dish) {
     if (!v) return;
     try {
       v.pause();
-      const blob = await frameFromVideo(v);
+      const { full, thumb } = await makePhotoSet(v); // throws SecurityError for videos hosted without CORS
       $('#photo-progress', drawer).textContent = 'Saving frame as photo…';
-      d.image = await uploadMedia(slug, blob, 'photos', MODE === 'live' ? 'supabase' : 'local');
+      await savePhotoSet(d, full, thumb);
       d.focus = '50% 50%';
       $('#photo-progress', drawer).textContent = 'Photo taken from the video.';
       refreshPhoto();

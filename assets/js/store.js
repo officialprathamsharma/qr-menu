@@ -128,6 +128,7 @@ export async function withResolvedMedia(data) {
   await Promise.all(
     (copy.dishes || []).map(async (d) => {
       d.image = await resolveMedia(d.image);
+      if (d.thumb) d.thumb = await resolveMedia(d.thumb);
       d.video = d.video ? await resolveMedia(d.video) : d.video;
     }),
   );
