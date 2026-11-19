@@ -633,10 +633,11 @@ function featureCard(d, i) {
 }
 
 /* Spotlight: one signature dish, edge to edge, at the top of the menu (hidden while searching/filtering).
-   Uses menu.spotlight (a dish id) if the owner set one, else the first item of the first featured list. */
+   Off unless the owner switches it on (menu.hero.enabled). Uses menu.hero.dishId if chosen, else the first
+   video item of the first featured list. */
 function spotlightDish() {
   const pick = (id) => id && byId(id) && !soldOut(byId(id)) ? byId(id) : null;
-  if (pick(data.spotlight)) return pick(data.spotlight);
+  if (pick(data.hero?.dishId)) return pick(data.hero.dishId);
   for (const r of data.rails) {
     for (const id of r.order || []) if (pick(id)?.video) return pick(id);
     const first = data.dishes.find((d) => d.tags.includes(r.match) && d.video && !soldOut(d));
@@ -648,14 +649,14 @@ function spotlightDish() {
 function renderHero(show) {
   const el = $('#hero');
   if (!el) return;
-  const d = show ? spotlightDish() : null;
+  const d = show && data.hero?.enabled ? spotlightDish() : null;
   el.hidden = !d;
   if (!d) { el.innerHTML = ''; return; }
   el.innerHTML = `
     <article class="hero-card" data-id="${esc(d.id)}">
       ${mediaHtml(d, 'media hero-media', { eager: true, w: 900 })}
       <div class="hero-body">
-        <p class="eyebrow">${esc(data.spotlightLabel || 'Tonight’s spotlight')}</p>
+        <p class="eyebrow">${esc(data.hero?.label || 'Tonight’s spotlight')}</p>
         <h2 class="hero-title">${vegMark(d)}<button type="button" class="name-btn">${esc(d.name)}</button></h2>
         ${d.description ? `<p class="hero-desc">${esc(d.description)}</p>` : ''}
         <div class="hero-foot"><span class="price">${esc(fmtPrice(d.price))}</span>${pills(d)}${addControl(d)}</div>

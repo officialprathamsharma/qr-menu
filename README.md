@@ -95,6 +95,8 @@ A desktop browser shows the "scan with your phone" screen; click **Preview on th
   - Price, prep time, kcal, category, description, veg/egg/non-veg, vegan, gluten-free, contains coffee, spice,
     hot/cold, type (drink/meal/snack/side), allergens, badges, featured lists, story and chef note.
 - **Categories**: rename, subtitle, Drinks/Food group, reorder, add, delete (only when empty); edit featured-list titles.
+- **Spotlight video** (Branding tab): on/off (off by default), which dish (or automatic: the first video in the
+  featured list) and an optional heading. Shown full-width at the top of the menu; saved with Save & publish.
 - **Branding** (owner-only): name, tagline, logo, currency, footer note, primary/secondary colours with a live
   preview. The background always stays black.
 - **Modes**:

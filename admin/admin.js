@@ -1101,8 +1101,43 @@ function renderBranding() {
         <label class="field">Secondary<span class="color-field"><input type="color" data-c="secondary" value="${esc(t.secondary || '#6b8f4e')}"><input class="input" data-ch="secondary" value="${esc(t.secondary || '#6b8f4e')}" maxlength="7"></span></label>
       </div>
       <div class="preview-strip" style="margin-top:14px" id="pv"></div>
+    </div>
+    <div class="panel">
+      <h3>Spotlight video</h3>
+      <p>A full-width video of one signature dish at the top of the menu, with its price and an Add button. Off by default.</p>
+      <label class="order-switch">
+        <input type="checkbox" id="hero-on" role="switch" ${menu.hero?.enabled ? 'checked' : ''}>
+        <span class="os-track" aria-hidden="true"></span>
+        <span class="os-label">Spotlight <b>${menu.hero?.enabled ? 'On' : 'Off'}</b></span>
+      </label>
+      <div class="brand-grid" style="margin-top:12px">
+        <label class="field">Dish
+          <select id="hero-dish" ${menu.hero?.enabled ? '' : 'disabled'}>
+            <option value="">Automatic: first video in your featured list</option>
+            ${menu.dishes.filter((d) => d.video || d.image).map((d) => `<option value="${esc(d.id)}" ${menu.hero?.dishId === d.id ? 'selected' : ''}>${esc(d.name)}${d.video ? ' · video' : ' · photo'}</option>`).join('')}
+          </select>
+        </label>
+        <label class="field">Heading <small>(optional)</small>
+          <input id="hero-label" value="${esc(menu.hero?.label || '')}" placeholder="Tonight’s spotlight" maxlength="40" ${menu.hero?.enabled ? '' : 'disabled'}>
+        </label>
+      </div>
+      <p class="hint" style="margin-top:8px">Changes go live when you Save &amp; publish. Sold-out dishes are skipped automatically.</p>
     </div>`;
   hydrate(v);
+  const setHero = (patch) => {
+    menu.hero = { ...(menu.hero || {}), ...patch };
+    if (!menu.hero.dishId) delete menu.hero.dishId;
+    if (!menu.hero.label) delete menu.hero.label;
+    setDirty();
+  };
+  $('#hero-on').onchange = (e) => {
+    setHero({ enabled: e.target.checked });
+    $('#hero-on').closest('.panel').querySelector('.os-label b').textContent = e.target.checked ? 'On' : 'Off';
+    $('#hero-dish').disabled = !e.target.checked;
+    $('#hero-label').disabled = !e.target.checked;
+  };
+  $('#hero-dish').onchange = (e) => setHero({ dishId: e.target.value });
+  $('#hero-label').oninput = (e) => { e.stopPropagation(); setHero({ label: e.target.value.trim() }); };
   const paintPreview = () => {
     const p = menu.theme.primary; const s = menu.theme.secondary;
     $('#pv').innerHTML = `

@@ -665,5 +665,8 @@
    "coffee": false,
    "available": true
   }
- ]
+ ],
+ "hero": {
+  "enabled": true
+ }
 }
