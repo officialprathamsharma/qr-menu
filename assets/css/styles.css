@@ -41,10 +41,10 @@
 
   /* Typography */
   --sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --serif: var(--sans);                     /* Cinema style is single-family; kept for existing references */
-  --font-display: var(--sans);
-  --fw-display: 650;
-  --tracking-tight: -0.02em;
+  --serif: 'Playfair Display', Georgia, serif;
+  --font-display: var(--serif);             /* editorial serif for dish names and headings (food & hospitality) */
+  --fw-display: 600;
+  --tracking-tight: -0.01em;
   --fs-2xs: 11px;
   --fs-xs: 12px;
   --fs-sm: 13px;
@@ -73,6 +73,8 @@
   --shadow-2: 0 20px 50px rgba(0, 0, 0, 0.6);
   --glow: 0 8px 28px color-mix(in srgb, var(--primary) 30%, transparent);
   --blur: blur(20px) saturate(140%);
+  /* Dark fade that keeps text readable on top of food photos and videos */
+  --fade-media: linear-gradient(180deg, transparent 30%, rgba(5, 5, 6, 0.55) 58%, rgba(5, 5, 6, 0.92) 85%, var(--bg) 100%);
 
   /* Motion (expo-out) */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
@@ -309,17 +311,26 @@ body.framed #app { max-width: 420px; border-inline: 1px solid var(--line); box-s
 
 /* ---------- Category overview + expandable groups ---------- */
 .overview { padding: 26px 0 6px; }
-.ov-group { display: grid; grid-template-columns: 58px 1fr; gap: 10px; align-items: start; padding: var(--space-3) var(--gutter) 0; }
-.ov-label { font-size: var(--fs-2xs); letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding-top: 9px; }
-.ov-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.ov-chip {
-  display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; border-radius: var(--radius-sm);
-  background: var(--surface-2); border: 1px solid var(--line); color: var(--text); font-size: var(--fs-sm); text-decoration: none;
-  transition: border-color var(--dur-1), transform var(--dur-2) var(--ease-out);
+.ov-group { padding: var(--space-4) 0 0 var(--gutter); }
+.ov-label { display: block; font-size: var(--fs-2xs); letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin-bottom: 10px; }
+/* Categories as photos of their own food, scrolling sideways */
+.ov-tiles {
+  display: grid; grid-auto-flow: column; grid-auto-columns: 96px; gap: var(--space-3);
+  overflow-x: auto; padding-right: var(--gutter); scrollbar-width: none; overscroll-behavior-x: contain; scroll-snap-type: x proximity;
 }
-.ov-chip:hover { border-color: var(--primary-line); }
-.ov-chip:active { transform: scale(var(--press-scale)); }
-.ov-chip small { color: var(--faint); font-size: var(--fs-2xs); font-variant-numeric: tabular-nums; }
+.ov-tiles::-webkit-scrollbar { display: none; }
+.ov-tile { display: flex; flex-direction: column; gap: 6px; color: var(--text); text-decoration: none; scroll-snap-align: start; min-width: 0; }
+.ov-img {
+  position: relative; display: grid; place-items: center; width: 96px; height: 96px; border-radius: var(--radius-lg); overflow: hidden;
+  background: var(--surface-2); border: 1px solid var(--line); transition: border-color var(--dur-1), transform var(--dur-2) var(--ease-out);
+}
+.ov-img img { position: absolute; inset: 0; opacity: 0; transition: opacity var(--dur-2); }
+.ov-img img.ld { opacity: 1; }
+.ov-tile:hover .ov-img { border-color: var(--primary-line); }
+.ov-tile:active .ov-img { transform: scale(var(--press-scale)); }
+.ov-mono { font: 600 34px var(--serif); color: var(--primary); }
+.ov-name { font-size: var(--fs-sm); font-weight: 600; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ov-tile small { color: var(--faint); font-size: var(--fs-2xs); margin-top: -4px; }
 
 /* Categories: collapsible headings, one open at a time. The open heading sticks under the search bar. */
 .group { margin-top: 30px; }
@@ -605,3 +616,55 @@ body.has-cart .foot { padding-bottom: calc(110px + var(--safe-bottom)); }
   :focus-visible { outline: 2px solid Highlight; }
 }
 .mast-chips .table-chip svg { width: 15px; height: 15px; color: var(--primary); }
+
+/* ==========================================================
+   Food-first layout: spotlight hero, story cards, cinematic video cards
+   ========================================================== */
+/* Spotlight hero */
+.hero { margin-bottom: var(--space-2); }
+.hero-card { position: relative; cursor: pointer; }
+.hero-media { aspect-ratio: 4 / 5; max-height: 72dvh; width: 100%; }
+.hero-media::after { content: ''; position: absolute; inset: 0; z-index: 1; background: var(--fade-media); pointer-events: none; }
+.hero-body { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; padding: 0 var(--gutter) var(--space-4); display: flex; flex-direction: column; gap: 6px; }
+.hero-title { font-family: var(--font-display); font-weight: var(--fw-display); font-size: 34px; line-height: 1.05; letter-spacing: var(--tracking-tight); display: flex; align-items: flex-start; gap: 10px; text-wrap: balance; }
+.hero-title .vnv { margin-top: 10px; }
+.hero-desc { color: var(--text); opacity: 0.85; font-size: var(--fs-md); line-height: 1.45; max-width: 34ch; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.hero-foot { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+.hero-foot .price { font-size: 20px; margin-right: 6px; }
+.hero-foot .add { margin-left: auto; height: 42px; }
+.hero-foot .add .add-first { padding: 0 24px; }
+
+/* Featured rails: tall story cards with the text over the food */
+.rail { grid-auto-columns: min(64%, 250px); }
+.feature.story-card { position: relative; aspect-ratio: 3 / 4; background: var(--surface-2); }
+.feature.story-card .media { position: absolute; inset: 0; aspect-ratio: auto; }
+.feature.story-card .media::after { content: ''; position: absolute; inset: 0; z-index: 1; background: var(--fade-media); pointer-events: none; }
+.feature-body.overlay { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; padding: var(--space-3); gap: 6px; flex: none; }
+.feature.story-card h3 { font-size: 19px; line-height: 1.15; text-wrap: balance; }
+.story-foot { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.story-foot .add { margin-left: auto; }
+
+/* Video items in the list: name and price on the video */
+.wide-media { position: relative; }
+.feature.wide .media { aspect-ratio: 16 / 10; }
+.wide-media .media::after { content: ''; position: absolute; inset: 0; z-index: 1; background: linear-gradient(180deg, transparent 45%, rgba(5, 5, 6, 0.85) 100%); pointer-events: none; }
+.wide-media .badges { top: 12px; left: 12px; }
+.wide-title { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; display: flex; align-items: flex-end; justify-content: space-between; gap: var(--space-3); padding: 0 14px 12px; }
+.feature.wide .wide-title h3 { font-family: var(--font-display); font-weight: var(--fw-display); font-size: 21px; line-height: 1.15; letter-spacing: var(--tracking-tight); }
+.wide-title .price { font-size: 17px; }
+.feature.wide .feature-body { padding-top: 10px; }
+
+/* Dish page: bigger picture that fades into the details */
+.sheet-media { aspect-ratio: 4 / 5; max-height: 58dvh; }
+.sheet-media::after { content: ''; position: absolute; inset: 0; z-index: 1; background: linear-gradient(180deg, transparent 65%, var(--surface-2) 100%); pointer-events: none; }
+.sheet-media .badges, .sheet-media .soldout-tag { z-index: 2; }
+.sheet-body h2 { font-size: 30px; }
+.pair-li { display: flex; align-items: center; gap: 10px; }
+.pair-li .pair { flex: 1; min-width: 0; }
+
+/* Gentle reveal as cards scroll in (uses the separate `translate` property so press-scale still works) */
+.rv { opacity: 0; translate: 0 14px; transition: opacity var(--dur-3) var(--ease-out), translate var(--dur-3) var(--ease-out), transform var(--dur-2) var(--ease-out); }
+.rv.in { opacity: 1; translate: 0 0; }
+@media (prefers-reduced-motion: reduce) { .rv { opacity: 1; translate: none; } }
+.pair-text > span { display: block; }
+.pair-name { line-height: 1.3; }

@@ -184,6 +184,7 @@ function renderMenu() {
         ${tableNo ? `<span class="table-chip">${icons.dish}Table ${esc(tableNo)}</span>` : ''}
       </div>
     </header>
+    <section class="hero" id="hero" aria-label="Spotlight"></section>
     <div class="toolbar">
       <form class="search" role="search" onsubmit="return false">
         ${icons.search}
@@ -249,6 +250,7 @@ function renderMenu() {
   addEventListener('scroll', onScrollFab, { passive: true });
 
   $('#feed').addEventListener('click', onFeedClick);
+  $('#hero').addEventListener('click', onFeedClick);
   bindSheet();
   addEventListener('hashchange', () => jumpToCategory(location.hash.slice(1)));
 
@@ -281,12 +283,16 @@ function renderFeed(resetScroll = false) {
   const feed = $('#feed');
   const { parsed, filters } = currentFilters();
   resetVideos();
-  if (hasFilters(filters, parsed.terms)) renderResults(feed, parsed, filters);
-  else renderBrowse(feed);
+  const browsing = !hasFilters(filters, parsed.terms);
+  if (browsing) renderBrowse(feed);
+  else renderResults(feed, parsed, filters);
+  renderHero(browsing);
   observeVideos(feed);
+  observeVideos($('#hero'));
+  observeReveal(feed);
   onScrollFab();
   if (resetScroll) {
-    const top = $('.masthead').offsetHeight;
+    const top = $('.toolbar').offsetTop;
     if (scrollY > top) scrollTo({ top, behavior: 'auto' });
   }
 }
@@ -320,9 +326,7 @@ function renderBrowse(feed) {
           if (!cats.length) return '';
           return `<div class="ov-group">
             <span class="ov-label">${esc(g.label)}</span>
-            <div class="ov-chips">${cats
-              .map((c) => `<a class="ov-chip" href="#cat-${esc(c.id)}" data-jump="cat-${esc(c.id)}">${esc(label(c))}<small>${countIn(c)}</small></a>`)
-              .join('')}</div>
+            <div class="ov-tiles">${cats.map(categoryTile).join('')}</div>
           </div>`;
         })
         .join('')}
@@ -343,6 +347,15 @@ function renderBrowse(feed) {
 }
 
 const dishesIn = (c) => data.dishes.filter((d) => d.category === c.match);
+
+// A category shown as a photo of its own food (first item with a picture), with its name and count.
+function categoryTile(c) {
+  const cover = dishesIn(c).find((d) => d.thumb || d.image);
+  const src = cover ? cover.thumb || sizedImage(cover.image, 320) : '';
+  return `<a class="ov-tile" href="#cat-${esc(c.id)}" data-jump="cat-${esc(c.id)}">
+    <span class="ov-img">${src ? `<img src="${esc(src)}" alt="" loading="lazy" decoding="async" ${imgLoaded} style="object-position:${esc(cover.focus || '50% 50%')}">` : `<span class="ov-mono">${esc(label(c).trim()[0] || '•')}</span>`}</span>
+    <span class="ov-name">${esc(label(c))}</span><small>${countIn(c)} items</small></a>`;
+}
 const countIn = (c) => dishesIn(c).length;
 
 // Accordion: categories are collapsed headings and only one is open at a time. The open one's heading
@@ -400,6 +413,7 @@ function expand(block, c) {
   body.innerHTML = listHtml(dishesIn(c));
   body.hidden = false;
   observeVideos(body);
+  observeReveal(body);
   slide(body, 0, Math.min(body.scrollHeight, innerHeight * 1.5));
 }
 
@@ -605,19 +619,63 @@ function mediaHtml(d, cls, { eager = false, w = 320 } = {}) {
     </div>`;
 }
 
+/* Featured rails: tall "story" cards — the food fills the card; name, price and Add sit on a dark fade. */
 function featureCard(d, i) {
   return `
-    <article class="feature${soldOut(d) ? ' is-soldout' : ''}" data-id="${esc(d.id)}">
+    <article class="feature story-card${soldOut(d) ? ' is-soldout' : ''}" data-id="${esc(d.id)}">
       ${mediaHtml(d, 'media', { eager: i < 2, w: 640 })}
-      <div class="feature-body">
-        ${d.badges.length ? `<div class="badges-inline">${d.badges.slice(0, 2).map(badgeHtml).join('')}</div>` : ''}
-        <div class="title-row">
-          <h3>${vegMark(d)}<button type="button" class="name-btn">${esc(d.name)}</button></h3>
-          <span class="price">${esc(fmtPrice(d.price))}</span>
-        </div>
-        <div class="pills">${pills(d)}${addControl(d)}</div>
+      <div class="feature-body overlay">
+        ${d.badges.length ? `<div class="badges-inline">${d.badges.slice(0, 1).map(badgeHtml).join('')}</div>` : ''}
+        <h3>${vegMark(d)}<button type="button" class="name-btn">${esc(d.name)}</button></h3>
+        <div class="story-foot"><span class="price">${esc(fmtPrice(d.price))}</span>${d.prepTime ? `<span class="pill">${icons.clock}${d.prepTime} min</span>` : ''}${addControl(d)}</div>
       </div>
     </article>`;
+}
+
+/* Spotlight: one signature dish, edge to edge, at the top of the menu (hidden while searching/filtering).
+   Uses menu.spotlight (a dish id) if the owner set one, else the first item of the first featured list. */
+function spotlightDish() {
+  const pick = (id) => id && byId(id) && !soldOut(byId(id)) ? byId(id) : null;
+  if (pick(data.spotlight)) return pick(data.spotlight);
+  for (const r of data.rails) {
+    for (const id of r.order || []) if (pick(id)?.video) return pick(id);
+    const first = data.dishes.find((d) => d.tags.includes(r.match) && d.video && !soldOut(d));
+    if (first) return first;
+  }
+  return data.dishes.find((d) => d.video && !soldOut(d)) || data.dishes.find((d) => d.image && !soldOut(d)) || null;
+}
+
+function renderHero(show) {
+  const el = $('#hero');
+  if (!el) return;
+  const d = show ? spotlightDish() : null;
+  el.hidden = !d;
+  if (!d) { el.innerHTML = ''; return; }
+  el.innerHTML = `
+    <article class="hero-card" data-id="${esc(d.id)}">
+      ${mediaHtml(d, 'media hero-media', { eager: true, w: 900 })}
+      <div class="hero-body">
+        <p class="eyebrow">${esc(data.spotlightLabel || 'Tonight’s spotlight')}</p>
+        <h2 class="hero-title">${vegMark(d)}<button type="button" class="name-btn">${esc(d.name)}</button></h2>
+        ${d.description ? `<p class="hero-desc">${esc(d.description)}</p>` : ''}
+        <div class="hero-foot"><span class="price">${esc(fmtPrice(d.price))}</span>${pills(d)}${addControl(d)}</div>
+      </div>
+    </article>`;
+}
+
+/* Cards fade up gently as they scroll in (skipped for reduced motion). */
+let revealIO;
+function observeReveal(root) {
+  if (prefersReduced || !('IntersectionObserver' in window)) return;
+  revealIO ||= new IntersectionObserver((entries) => entries.forEach((e) => {
+    if (e.isIntersecting) { e.target.classList.add('in'); revealIO.unobserve(e.target); }
+  }), { rootMargin: '0px 0px -8% 0px' });
+  for (const el of $$('.feature, .row, .ov-tile', root)) {
+    if (el.dataset.rv) continue;
+    el.dataset.rv = '1';
+    el.classList.add('rv');
+    revealIO.observe(el);
+  }
 }
 
 // Items with a video show as full-width cards (like the featured cards at the top) with a 16:9 video,
@@ -628,13 +686,15 @@ const listHtml = (list) => list.map((d) => (hasVideo(d) ? wideCard(d) : rowCard(
 function wideCard(d) {
   return `
     <article class="feature wide${soldOut(d) ? ' is-soldout' : ''}" data-id="${esc(d.id)}">
-      ${mediaHtml(d, 'media', { w: 900 })}
-      <div class="feature-body">
-        ${d.badges.length ? `<div class="badges-inline">${d.badges.slice(0, 2).map(badgeHtml).join('')}</div>` : ''}
-        <div class="title-row">
+      <div class="wide-media">
+        ${mediaHtml(d, 'media', { w: 900 })}
+        ${d.badges.length ? `<div class="badges">${d.badges.slice(0, 2).map(badgeHtml).join('')}</div>` : ''}
+        <div class="wide-title">
           <h3>${vegMark(d)}<button type="button" class="name-btn">${esc(d.name)}</button></h3>
           <span class="price">${esc(fmtPrice(d.price))}</span>
         </div>
+      </div>
+      <div class="feature-body">
         ${d.description ? `<p class="desc">${esc(d.description)}</p>` : ''}
         <div class="pills">${pills(d)}${addControl(d)}</div>
       </div>
@@ -933,17 +993,28 @@ function dishHtml(d) {
   if (d.diet?.veg != null) facts.push(`<span class="fact">${vegMark(d)}${d.diet.veg ? (d.diet.vegan ? 'Vegan' : 'Vegetarian') : d.diet.egg ? 'Contains egg' : 'Non-veg'}</span>`);
   if (d.spice > 0) facts.push(`<span class="fact"><span class="spice-flames">${icons.flame.repeat(d.spice)}</span>${['', 'Mild', 'Medium', 'Hot'][d.spice]}</span>`);
 
-  const pairings = (d.pairings || []).map((p) => {
-    const ref = p.dishId && byId(p.dishId);
+  // "Goes well with": the owner's pairings, or else favourites from the other side of the menu
+  // (a drink suggests food, food suggests a drink). Each has its own Add button.
+  let pairs = (d.pairings || []).map((p) => ({ ...p, ref: p.dishId && byId(p.dishId) }));
+  if (!pairs.length) {
+    const group = ctx.groupOf(d);
+    const loved = (x) => (x.tags.includes('most-loved') ? 2 : 0) + (x.badges.length ? 1 : 0);
+    pairs = data.dishes
+      .filter((x) => x.id !== d.id && !soldOut(x) && ctx.groupOf(x) && ctx.groupOf(x) !== group && (x.thumb || x.image))
+      .sort((a, b) => loved(b) - loved(a))
+      .slice(0, 3)
+      .map((ref) => ({ ref, kind: ctx.groupOf(ref) === 'drinks' ? 'To drink' : 'To eat' }));
+  }
+  const pairings = pairs.map((p) => {
+    const ref = p.ref;
     const inner = `
       ${ref ? `<img src="${esc(ref.thumb || sizedImage(ref.image, 160))}" alt="" loading="lazy">` : ''}
       <span class="pair-text">
         <span class="pair-kind">${esc(p.kind || 'Pairing')}</span>
         <span class="pair-name">${esc(ref ? ref.name : p.name)}</span>
-        ${p.note ? `<span class="pair-note">${esc(p.note)}</span>` : ''}
-      </span>
-      ${ref ? icons.arrow : ''}`;
-    return `<li>${ref ? `<button type="button" class="pair" data-open="${esc(ref.id)}">${inner}</button>` : `<div class="pair">${inner}</div>`}</li>`;
+        ${p.note ? `<span class="pair-note">${esc(p.note)}</span>` : ref ? `<span class="pair-note">${esc(fmtPrice(ref.price))}</span>` : ''}
+      </span>`;
+    return `<li class="pair-li">${ref ? `<button type="button" class="pair" data-open="${esc(ref.id)}">${inner}</button>${addControl(ref)}` : `<div class="pair">${inner}</div>`}</li>`;
   }).join('');
 
   const hasVid = d.video && !failedVideos.has(d.video);
@@ -964,7 +1035,7 @@ function dishHtml(d) {
       <p class="lead">${esc(d.description)}</p>
       ${d.story ? `<h4>The story</h4><p class="story">${esc(d.story)}</p>` : ''}
       ${d.chefNote ? `<blockquote>“${esc(d.chefNote)}”<cite>— ${esc(data.chef || 'The Chef')}</cite></blockquote>` : ''}
-      ${pairings ? `<h4>Pairs well with</h4><ul class="pairings">${pairings}</ul>` : ''}
+      ${pairings ? `<h4>Goes well with</h4><ul class="pairings">${pairings}</ul>` : ''}
       ${d.allergens?.length ? `<p class="allergens">Contains: ${esc(d.allergens.join(', '))}. Please tell our team about any allergies.</p>` : ''}
     </div>
     ${canOrder() && !soldOut(d) ? `<div class="sheet-add">${addControl(d, true)}</div>` : ''}`;
