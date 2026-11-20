@@ -93,6 +93,18 @@ function applyTheme({ primary, secondary } = {}) {
 }
 
 /* ---------- Boot ---------- */
+// The NomNom splash (in index.html) stays up for at least ~1.3 s from page start, then lifts away.
+const SPLASH_MIN = prefersReduced ? 500 : 1300;
+function hideSplash() {
+  const el = document.getElementById('splash');
+  if (!el || el.dataset.leaving) return;
+  el.dataset.leaving = '1';
+  setTimeout(() => {
+    el.classList.add('out');
+    setTimeout(() => el.remove(), 500);
+  }, Math.max(0, SPLASH_MIN - performance.now()));
+}
+
 const isDesktop = () => matchMedia('(hover: hover) and (pointer: fine)').matches && innerWidth > 820;
 
 async function init() {
@@ -102,6 +114,7 @@ async function init() {
     data = await withResolvedMedia(loaded.data);
   } catch {
     app.innerHTML = `<div class="gate"><div class="gate-card"><h1>Menu not found</h1><p>Please ask a member of staff for help.</p></div></div>`;
+    hideSplash();
     return;
   }
   normalize();
@@ -115,6 +128,7 @@ async function init() {
 
   if (isDesktop() && !params.has('preview')) renderGate();
   else renderMenu();
+  hideSplash();
 }
 
 function normalize() {
@@ -167,6 +181,38 @@ function logoHtml() {
     : `<div class="logo monogram" aria-hidden="true">${esc(data.name.trim()[0] || '•')}</div>`;
 }
 
+/* ---------- Reviews & Instagram ---------- */
+function safeGoogle(v) {
+  try {
+    const u = new URL(v);
+    const host = u.hostname.replace(/^www\./, '');
+    const ok = u.protocol === 'https:' && (['g.page', 'maps.app.goo.gl', 'goo.gl', 'search.google.com', 'maps.google.com'].includes(host) || /^google\.[a-z.]+$/.test(host));
+    return ok ? u.href : '';
+  } catch { return ''; }
+}
+function safeInstagram(v) {
+  try {
+    const u = new URL(v);
+    const name = u.pathname.split('/').filter(Boolean)[0] || '';
+    return u.protocol === 'https:' && /(^|\.)instagram\.com$/.test(u.hostname) && /^[A-Za-z0-9._]{1,30}$/.test(name) ? `https://www.instagram.com/${name}/` : '';
+  } catch { return ''; }
+}
+function socialHtml() {
+  const g = safeGoogle(data.links?.google);
+  const ig = safeInstagram(data.links?.instagram);
+  if (!g && !ig) return '';
+  const handle = ig ? `@${ig.split('/')[3]}` : '';
+  return `
+    <section class="social" aria-labelledby="social-title">
+      <h2 id="social-title">Liked what you ate?</h2>
+      <p>Tell people about ${esc(data.name)}, or see what’s new before your next visit.</p>
+      <div class="social-actions">
+        ${g ? `<a class="social-btn" href="${esc(g)}" target="_blank" rel="noopener noreferrer"><img src="assets/icons/google-icon.svg" alt="" width="24" height="24"><span><b>Review us on Google</b><small>Takes a minute</small></span>${icons.arrow}</a>` : ''}
+        ${ig ? `<a class="social-btn" href="${esc(ig)}" target="_blank" rel="noopener noreferrer"><img src="assets/icons/instagram-icon.svg" alt="" width="24" height="24"><span><b>Follow on Instagram</b><small>${esc(handle)}</small></span>${icons.arrow}</a>` : ''}
+      </div>
+    </section>`;
+}
+
 /* ---------- Shell ---------- */
 const QUICK = [
   { id: 'popular', label: 'Popular', icon: icons.star },
@@ -178,11 +224,15 @@ const QUICK = [
 function renderMenu() {
   app.innerHTML = `
     <header class="masthead">
-      <div class="brand">${logoHtml()}<div class="brand-text"><h1>${esc(data.name)}</h1>${data.tagline ? `<p>${esc(data.tagline)}</p>` : ''}</div></div>
-      <div class="mast-chips">
-        ${data.wifi?.ssid ? `<button type="button" class="table-chip" id="wifi-chip" aria-haspopup="dialog">${icons.wifi}Wi-Fi</button>` : ''}
-        ${tableNo ? `<span class="table-chip">${icons.dish}Table ${esc(tableNo)}</span>` : ''}
+      <div class="mast-top">
+        ${logoHtml()}
+        <div class="mast-chips">
+          ${data.wifi?.ssid ? `<button type="button" class="table-chip" id="wifi-chip" aria-haspopup="dialog">${icons.wifi}Wi-Fi</button>` : ''}
+          ${tableNo ? `<span class="table-chip">${icons.dish}Table ${esc(tableNo)}</span>` : ''}
+        </div>
       </div>
+      <h1 class="mast-name">${esc(data.name)}</h1>
+      ${data.tagline ? `<p class="mast-tag">${esc(data.tagline)}</p>` : ''}
     </header>
     <section class="hero" id="hero" aria-label="Spotlight"></section>
     <div class="toolbar">
@@ -201,8 +251,9 @@ function renderMenu() {
     <button type="button" class="menu-fab" id="menu-fab" aria-haspopup="dialog" hidden>${icons.list}<span>Menu</span></button>
     <div class="cartbar" id="cartbar" hidden><button type="button" id="open-cart" aria-haspopup="dialog"></button></div>
     <footer class="foot">
-      ${data.footerNote ? `${esc(data.footerNote)}<br>` : ''}
-      Powered by <strong>QR Menu</strong>
+      ${socialHtml()}
+      ${data.footerNote ? `<p class="foot-note">${esc(data.footerNote)}</p>` : ''}
+      <p class="made-by">Menu by <strong>NomNom</strong></p>
     </footer>
     <div class="sheet" id="sheet" aria-hidden="true">
       <div class="sheet-backdrop" data-close></div>
@@ -289,7 +340,7 @@ function renderFeed(resetScroll = false) {
   renderHero(browsing);
   observeVideos(feed);
   observeVideos($('#hero'));
-  observeReveal(feed);
+  bindRails(feed);
   onScrollFab();
   if (resetScroll) {
     const top = $('.toolbar').offsetTop;
@@ -298,64 +349,114 @@ function renderFeed(resetScroll = false) {
 }
 
 function renderBrowse(feed) {
-  const rails = data.rails
-    .map((s) => {
-      let list = data.dishes.filter((d) => d.tags.includes(s.match));
-      if (s.order?.length) {
-        const rank = (d) => { const i = s.order.indexOf(d.id); return i < 0 ? 1e9 : i; };
-        list = list.sort((a, b) => rank(a) - rank(b));
-      }
-      if (!list.length) return '';
-      return `
-        <section class="rail-sec" aria-labelledby="rail-${esc(s.id)}">
-          <div class="sec-head">
-            ${s.eyebrow ? `<p class="eyebrow">${esc(s.eyebrow)}</p>` : ''}
-            <h2 id="rail-${esc(s.id)}">${esc(label(s))}</h2>
-          </div>
-          <div class="rail">${list.map((d, i) => featureCard(d, i)).join('')}</div>
-        </section>`;
-    })
-    .join('');
-
-  const overview = `
-    <section class="overview" aria-labelledby="ov-title">
-      <h2 id="ov-title" class="sec-title">The menu</h2>
-      ${data.groups
-        .map((g) => {
-          const cats = data.categories.filter((c) => c.group === g.id);
-          if (!cats.length) return '';
-          return `<div class="ov-group">
-            <span class="ov-label">${esc(g.label)}</span>
-            <div class="ov-tiles">${cats.map(categoryTile).join('')}</div>
-          </div>`;
-        })
-        .join('')}
-    </section>`;
-
+  const rails = data.rails.map(railHtml).join('');
+  const cats = data.categories.filter((c) => countIn(c));
   const groups = data.groups
     .map((g) => {
-      const cats = data.categories.filter((c) => c.group === g.id && countIn(c));
-      if (!cats.length) return '';
+      const gc = cats.filter((c) => c.group === g.id);
+      if (!gc.length) return '';
       return `<section class="group" aria-labelledby="g-${esc(g.id)}">
-        <h2 class="group-title" id="g-${esc(g.id)}">${esc(g.label)}</h2>
-        ${cats.map(categoryBlock).join('')}
+        <h3 class="group-title" id="g-${esc(g.id)}">${esc(g.label)}</h3>
+        ${gc.map(categoryBlock).join('')}
       </section>`;
     })
     .join('');
+  const items = cats.reduce((n, c) => n + countIn(c), 0);
+  const menu = `
+    <section class="menu-sec" id="menu-start" aria-labelledby="menu-title">
+      <div class="sec-head">
+        <h2 id="menu-title">The full menu</h2>
+        <p class="sec-meta">${items} items · ${cats.length} sections</p>
+      </div>
+      ${groups}
+    </section>`;
+  feed.innerHTML = rails + bestSellersHtml() + menu;
+}
 
-  feed.innerHTML = rails + overview + groups;
+function railList(s) {
+  let list = data.dishes.filter((d) => d.tags.includes(s.match));
+  if (s.order?.length) {
+    const rank = (d) => { const i = s.order.indexOf(d.id); return i < 0 ? 1e9 : i; };
+    list = list.sort((a, b) => rank(a) - rank(b));
+  }
+  return list;
+}
+
+/* Featured lists: a row of tall cards you swipe through. The card in view plays its clip;
+   the counter and the track under the row follow your thumb. */
+function railHtml(s) {
+  const list = railList(s);
+  if (!list.length) return '';
+  return `
+    <section class="rail-sec" aria-labelledby="rail-${esc(s.id)}">
+      <div class="sec-head">
+        <div>
+          ${s.eyebrow ? `<p class="eyebrow">${esc(s.eyebrow)}</p>` : ''}
+          <h2 id="rail-${esc(s.id)}">${esc(label(s))}</h2>
+        </div>
+        ${list.length > 1 ? `<p class="rail-count" aria-hidden="true"><b>1</b> / ${list.length}</p>` : ''}
+      </div>
+      <div class="rail" data-rail>${list.map((d, i) => featureCard(d, i)).join('')}</div>
+      ${list.length > 1 ? `<div class="rail-track" aria-hidden="true"><span style="width:${(100 / list.length).toFixed(2)}%"></span></div>` : ''}
+    </section>`;
+}
+
+function bindRails(root) {
+  for (const rail of $$('[data-rail]', root)) {
+    if (rail.dataset.bound) continue;
+    rail.dataset.bound = '1';
+    const sec = rail.closest('.rail-sec');
+    const count = $('.rail-count b', sec);
+    const thumb = $('.rail-track span', sec);
+    const n = rail.children.length;
+    let tick = false;
+    rail.addEventListener('scroll', () => {
+      if (tick) return;
+      tick = true;
+      requestAnimationFrame(() => {
+        tick = false;
+        const max = rail.scrollWidth - rail.clientWidth;
+        const f = max > 0 ? rail.scrollLeft / max : 0;
+        if (thumb) thumb.style.transform = `translateX(${(f * (n - 1) * 100).toFixed(1)}%)`;
+        if (count) count.textContent = Math.min(n, Math.round(f * (n - 1)) + 1);
+      });
+    }, { passive: true });
+  }
+}
+
+/* Best sellers: the dishes the owner marks Bestseller, topped up from the featured list, as a numbered top 5. */
+function bestSellers() {
+  const marked = data.dishes.filter((d) => !soldOut(d) && (d.badges.includes('bestseller') || d.tags.includes('bestseller')));
+  if (!marked.length) return [];
+  const out = [...marked];
+  for (const r of data.rails) for (const d of railList(r)) if (out.length < 5 && !soldOut(d) && !out.includes(d)) out.push(d);
+  return out.slice(0, 5);
+}
+
+function bestSellersHtml() {
+  const list = bestSellers();
+  if (list.length < 3) return '';
+  return `
+    <section class="top-sec" aria-labelledby="top-title">
+      <div class="sec-head">
+        <div><p class="eyebrow">Top ${list.length}</p><h2 id="top-title">Best sellers</h2></div>
+      </div>
+      <ol class="top-list">${list.map((d, i) => `
+        <li class="top-li${hasVideo(d) ? ' has-clip' : ''}" data-id="${esc(d.id)}">
+          <span class="top-n" aria-hidden="true">${i + 1}</span>
+          ${mediaHtml(d, 'top-media')}
+          <span class="top-text">
+            <span class="top-name">${vegMark(d)}<button type="button" class="name-btn">${esc(d.name)}</button></span>
+            <span class="top-meta"><span class="price">${esc(fmtPrice(d.price))}</span>${esc(ctx.categoryLabel(d))}</span>
+          </span>
+          ${addControl(d) || `<span class="top-go" aria-hidden="true">${icons.arrow}</span>`}
+        </li>`).join('')}
+      </ol>
+    </section>`;
 }
 
 const dishesIn = (c) => data.dishes.filter((d) => d.category === c.match);
 
-// A category shown as a photo of its own food (first item with a picture), with its name and count.
-function categoryTile(c) {
-  const cover = dishesIn(c).find((d) => d.thumb || d.image);
-  const src = cover ? cover.thumb || sizedImage(cover.image, 320) : '';
-  return `<a class="ov-tile" href="#cat-${esc(c.id)}" data-jump="cat-${esc(c.id)}">
-    <span class="ov-img">${src ? `<img src="${esc(src)}" alt="" loading="lazy" decoding="async" ${imgLoaded} style="object-position:${esc(cover.focus || '50% 50%')}">` : `<span class="ov-mono">${esc(label(c).trim()[0] || '•')}</span>`}</span>
-    <span class="ov-name">${esc(label(c))}</span><small>${countIn(c)} items</small></a>`;
-}
 const countIn = (c) => dishesIn(c).length;
 
 // Accordion: categories are collapsed headings and only one is open at a time. The open one's heading
@@ -363,14 +464,18 @@ const countIn = (c) => dishesIn(c).length;
 function categoryBlock(c) {
   const list = dishesIn(c);
   const open = state.openCat === c.id;
+  const clips = list.filter(hasVideo).length;
+  const peek = list.filter((d) => d.thumb || d.image).slice(0, 3)
+    .map((d) => `<img src="${esc(d.thumb || sizedImage(d.image, 160))}" alt="" loading="lazy" decoding="async" style="object-position:${esc(d.focus || '50% 50%')}">`).join('');
   return `
     <section class="cat${open ? ' open' : ''}" id="cat-${esc(c.id)}">
       <h3 class="cat-h">
         <button type="button" class="cat-head" data-cat="${esc(c.id)}" aria-expanded="${open}" aria-controls="body-${esc(c.id)}">
           <span class="cat-name">
             <span class="cat-title">${esc(label(c))}</span>
-            <span class="cat-meta">${list.length} ${list.length === 1 ? 'item' : 'items'}${c.eyebrow ? ` · ${esc(c.eyebrow)}` : ''}</span>
+            <span class="cat-meta">${list.length} ${list.length === 1 ? 'item' : 'items'}${clips ? ` · <span class="cat-clips">${clips} on video</span>` : ''}${c.eyebrow ? ` · ${esc(c.eyebrow)}` : ''}</span>
           </span>
+          ${peek ? `<span class="cat-peek" aria-hidden="true">${peek}</span>` : ''}
           <span class="chev">${icons.chevron}</span>
         </button>
       </h3>
@@ -413,7 +518,6 @@ function expand(block, c) {
   body.innerHTML = listHtml(dishesIn(c));
   body.hidden = false;
   observeVideos(body);
-  observeReveal(body);
   slide(body, 0, Math.min(body.scrollHeight, innerHeight * 1.5));
 }
 
@@ -465,9 +569,9 @@ function onScrollFab() {
   requestAnimationFrame(() => {
     fabTick = false;
     const fab = $('#menu-fab');
-    const ov = $('.overview');
-    const show = Boolean(ov) && ov.getBoundingClientRect().bottom < 0 && !state.sheetOpen;
-    fab.hidden = !ov;
+    const ms = $('#menu-start');
+    const show = Boolean(ms) && ms.getBoundingClientRect().top < 0 && !state.sheetOpen;
+    fab.hidden = !ms;
     fab.classList.toggle('show', show);
   });
 }
@@ -623,7 +727,7 @@ function mediaHtml(d, cls, { eager = false, w = 320 } = {}) {
 function featureCard(d, i) {
   return `
     <article class="feature story-card${soldOut(d) ? ' is-soldout' : ''}" data-id="${esc(d.id)}">
-      ${mediaHtml(d, 'media', { eager: i < 2, w: 640 })}
+      ${mediaHtml(d, 'media', { eager: i < 3, w: 640 })}
       <div class="feature-body overlay">
         ${d.badges.length ? `<div class="badges-inline">${d.badges.slice(0, 1).map(badgeHtml).join('')}</div>` : ''}
         <h3>${vegMark(d)}<button type="button" class="name-btn">${esc(d.name)}</button></h3>
@@ -662,21 +766,6 @@ function renderHero(show) {
         <div class="hero-foot"><span class="price">${esc(fmtPrice(d.price))}</span>${pills(d)}${addControl(d)}</div>
       </div>
     </article>`;
-}
-
-/* Cards fade up gently as they scroll in (skipped for reduced motion). */
-let revealIO;
-function observeReveal(root) {
-  if (prefersReduced || !('IntersectionObserver' in window)) return;
-  revealIO ||= new IntersectionObserver((entries) => entries.forEach((e) => {
-    if (e.isIntersecting) { e.target.classList.add('in'); revealIO.unobserve(e.target); }
-  }), { rootMargin: '0px 0px -8% 0px' });
-  for (const el of $$('.feature, .row, .ov-tile', root)) {
-    if (el.dataset.rv) continue;
-    el.dataset.rv = '1';
-    el.classList.add('rv');
-    revealIO.observe(el);
-  }
 }
 
 // Items with a video show as full-width cards (like the featured cards at the top) with a 16:9 video,

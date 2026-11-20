@@ -363,3 +363,4 @@ main.view { max-width: 980px; margin: 0 auto; padding: var(--space-5) var(--spac
 .order-switch input:focus-visible + .os-track { outline: 2px solid var(--primary); outline-offset: 2px; }
 .order-switch input:disabled + .os-track { opacity: 0.5; }
 .os-label b { color: var(--text); }
+.link-err.bad { color: var(--danger); }

@@ -1095,7 +1095,7 @@ function renderBranding() {
     </div>
     <div class="panel">
       <h3>Colours</h3>
-      <p>The background always stays black. Primary is used for buttons, prices and active filters; secondary for badges.</p>
+      <p>The menu sits on a warm cream page. Primary is used for buttons, the Add control and active filters; secondary for badges.</p>
       <div class="brand-grid">
         <label class="field">Primary<span class="color-field"><input type="color" data-c="primary" value="${esc(t.primary || '#d4a373')}"><input class="input" data-ch="primary" value="${esc(t.primary || '#d4a373')}" maxlength="7"></span></label>
         <label class="field">Secondary<span class="color-field"><input type="color" data-c="secondary" value="${esc(t.secondary || '#6b8f4e')}"><input class="input" data-ch="secondary" value="${esc(t.secondary || '#6b8f4e')}" maxlength="7"></span></label>
@@ -1122,8 +1122,42 @@ function renderBranding() {
         </label>
       </div>
       <p class="hint" style="margin-top:8px">Changes go live when you Save &amp; publish. Sold-out dishes are skipped automatically.</p>
+    </div>
+    <div class="panel">
+      <h3>Reviews &amp; Instagram</h3>
+      <p>Shown as two buttons at the bottom of the menu. Leave a box empty to hide its button.</p>
+      <div class="brand-grid" style="margin-top:12px">
+        <label class="field">Google review link
+          <input data-link="google" type="url" inputmode="url" value="${esc(menu.links?.google || '')}" placeholder="https://g.page/r/…/review">
+        </label>
+        <label class="field">Instagram
+          <input data-link="instagram" inputmode="url" value="${esc(menu.links?.instagram || '')}" placeholder="@yourcafe or instagram.com/yourcafe">
+        </label>
+      </div>
+      <p class="hint link-err" id="link-err" role="alert" style="margin-top:8px">Google review link: open your Google Business Profile, choose “Ask for reviews” and copy the link.</p>
     </div>`;
   hydrate(v);
+  // Links are checked here and again in the guest app; only https links to Google / Instagram are kept.
+  const LINK_HINT = $('#link-err').textContent;
+  $$('[data-link]', v).forEach((input) => {
+    input.addEventListener('input', (e) => {
+      e.stopPropagation();
+      const key = input.dataset.link;
+      const val = input.value.trim();
+      const clean = key === 'google' ? cleanGoogleLink(val) : cleanInstagram(val);
+      const err = $('#link-err');
+      if (val && !clean) {
+        err.textContent = key === 'google' ? 'That doesn’t look like a Google review link (it should start with https:// and be on google.com or g.page).' : 'Enter an Instagram handle like @yourcafe or an instagram.com link.';
+        err.classList.add('bad');
+        return;
+      }
+      err.textContent = LINK_HINT;
+      err.classList.remove('bad');
+      menu.links = { ...(menu.links || {}), [key]: clean || undefined };
+      if (!menu.links.google && !menu.links.instagram) delete menu.links;
+      setDirty();
+    });
+  });
   const setHero = (patch) => {
     menu.hero = { ...(menu.hero || {}), ...patch };
     if (!menu.hero.dishId) delete menu.hero.dishId;
@@ -1142,8 +1176,8 @@ function renderBranding() {
     const p = menu.theme.primary; const s = menu.theme.secondary;
     $('#pv').innerHTML = `
       <span class="pv-chip" style="background:${esc(p)};color:#0b0b0b">Popular</span>
-      <span class="pv-chip" style="background:#181818;color:#f4f1ec;border:1px solid rgba(255,255,255,.1)">Veg</span>
-      <span style="color:${esc(p)};font-weight:600">₹329</span>
+      <span class="pv-chip" style="background:#fbf6ef;color:#221c17;border:1px solid rgba(34,28,23,.14)">Veg</span>
+      <span style="color:#221c17;font-weight:600">₹329</span>
       <span class="pv-chip" style="background:${esc(s)};color:#fff;height:24px;font-size:11px">Signature</span>`;
   };
   paintPreview();
@@ -1175,6 +1209,24 @@ function renderBranding() {
     } catch (err) { toast(`Logo upload failed: ${err.message || err}`, true); }
   };
   $('#logo-remove')?.addEventListener('click', () => { menu.logo = null; setDirty(); renderBranding(); });
+}
+
+function cleanGoogleLink(v) {
+  try {
+    const u = new URL(v);
+    const host = u.hostname.replace(/^www\./, '');
+    const ok = u.protocol === 'https:' && (host === 'g.page' || host === 'maps.app.goo.gl' || host === 'goo.gl' || host === 'search.google.com' || /^google\.[a-z.]+$/.test(host) || host === 'maps.google.com');
+    return ok ? u.href : '';
+  } catch { return ''; }
+}
+function cleanInstagram(v) {
+  const handle = v.replace(/^@/, '').match(/^[A-Za-z0-9._]{1,30}$/);
+  if (handle) return `https://www.instagram.com/${handle[0]}/`;
+  try {
+    const u = new URL(/^https?:/i.test(v) ? v : `https://${v}`);
+    const name = u.pathname.split('/').filter(Boolean)[0] || '';
+    return /(^|\.)instagram\.com$/.test(u.hostname) && /^[A-Za-z0-9._]{1,30}$/.test(name) ? `https://www.instagram.com/${name}/` : '';
+  } catch { return ''; }
 }
 
 boot().catch((err) => fatal(`Something went wrong: ${err.message || err}`));
