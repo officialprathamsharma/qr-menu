@@ -106,7 +106,7 @@ button.table-chip { cursor: pointer; transition: transform var(--dur-2) var(--ea
 button.table-chip:active { transform: scale(var(--press-scale)); }
 
 /* ---------- Search + quick filters (sticky) ---------- */
-.toolbar { position: sticky; top: 0; z-index: 20; padding: 10px 14px; background: var(--glass); backdrop-filter: blur(16px) saturate(140%); -webkit-backdrop-filter: blur(16px) saturate(140%); }
+.toolbar { position: sticky; top: 0; z-index: 20; padding: 10px 14px; background: var(--bg); box-shadow: 0 1px 0 var(--line); }
 .search {
   display: flex; align-items: center; gap: 10px; height: 48px; padding: 0 2px 0 16px;
   border-radius: var(--radius-pill); background: var(--surface); border: 1px solid var(--line-strong); box-shadow: 0 1px 2px rgba(60, 40, 20, 0.05);
@@ -257,7 +257,9 @@ button.table-chip:active { transform: scale(var(--press-scale)); }
 /* Items with a clip: a wide card in the section, name and price on the video */
 .feature.wide { margin: 8px 10px; border-radius: var(--radius); background: var(--surface-2); }
 .wide-media { position: relative; }
-.feature.wide .media { aspect-ratio: 16 / 10; }
+.feature.wide .media { aspect-ratio: 16 / 9; }
+/* Upright clips (shot on a phone) get an upright card instead of being cut to 16:9 */
+.feature.wide .media.tall { aspect-ratio: 4 / 5; }
 .wide-media .media::after { content: ''; position: absolute; inset: 0; z-index: 1; background: linear-gradient(180deg, transparent 45%, rgba(20, 14, 10, 0.8) 100%); pointer-events: none; }
 .wide-media .badges { top: 10px; left: 10px; }
 .wide-title { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; padding: 0 14px 12px; color: #fff; }
@@ -345,7 +347,7 @@ button.table-chip:active { transform: scale(var(--press-scale)); }
 .understood { flex-basis: 100%; order: 3; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: var(--fs-xs); color: var(--faint); }
 .understood span { padding: 3px 10px; border-radius: var(--radius-pill); background: var(--surface-2); color: var(--text); font-weight: 600; }
 .link-btn { margin-left: auto; color: var(--text); text-decoration: underline; text-underline-offset: 3px; font-size: var(--fs-sm); font-weight: 700; padding: 10px 0; min-height: 44px; }
-.results-cat { position: sticky; top: var(--toolbar-h, 118px); z-index: 10; background: var(--glass); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); font-size: var(--fs-xs); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); padding: 14px var(--gutter) 8px; font-weight: 700; }
+.results-cat { position: sticky; top: var(--toolbar-h, 118px); z-index: 10; background: var(--bg); font-size: var(--fs-xs); letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); padding: 14px var(--gutter) 8px; font-weight: 700; }
 .empty { text-align: center; color: var(--muted); padding: 36px var(--gutter); }
 .empty-sub { font-size: var(--fs-sm); color: var(--faint); margin-top: 14px; }
 .suggest { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 10px; }
@@ -385,7 +387,11 @@ body.framed .sheet-panel { max-width: 420px; }
 .sheet:not([data-kind='dish']) .sheet-close { background: var(--surface-2); border-color: transparent; }
 .sheet:not([data-kind='dish']) .sheet-grab span { background: var(--surface-3); box-shadow: none; }
 
-.sheet-media { aspect-ratio: 4 / 5; max-height: 58dvh; }
+.sheet-media { width: 100%; aspect-ratio: 4 / 5; max-height: 62dvh; background: #1d1813; }
+/* The dish page shows the whole photo or clip, never cut: it sits on a soft blurred copy of itself */
+.sheet-media > img.sheet-fit, .sheet-media > video { object-fit: contain; }
+.sheet-media > .sheet-bg { inset: -24px; width: calc(100% + 48px); height: calc(100% + 48px); filter: blur(22px) saturate(1.2) brightness(0.8); transform: none; }
+.sheet-media > .sheet-bg.ld { opacity: 1; }
 .sheet-media .badges { top: 16px; }
 .sheet-media .soldout-tag { top: auto; bottom: 16px; left: 16px; transform: none; }
 .sheet-body { padding: 18px 20px 4px; }
@@ -505,3 +511,4 @@ body.has-cart .foot { padding-bottom: calc(112px + var(--safe-bottom)); }
   .chip, .pill, .add, .btn, .cartbar button, .menu-fab, .sheet-panel, .feature, .search, .cat, .social-btn { border: 1px solid CanvasText; }
   :focus-visible { outline: 2px solid Highlight; }
 }
+.sheet-media.no-photo { background: var(--surface-2); }

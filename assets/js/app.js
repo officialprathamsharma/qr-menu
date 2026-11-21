@@ -863,6 +863,7 @@ function resetVideos() {
     (entries) => {
       for (const e of entries) {
         ratios.set(e.target, e.intersectionRatio);
+        if (e.intersectionRatio >= 0.25 && pageLoaded && e.target.getAttribute('src')) e.target.preload = 'auto';
         if (e.intersectionRatio === 0) state.userPaused.delete(e.target);
       }
       pickActive();
@@ -893,6 +894,9 @@ function observeVideos(root) {
     });
     v.addEventListener('waiting', () => media.classList.add('buffering'));
     v.addEventListener('error', () => failVideo(v));
+    v.addEventListener('loadedmetadata', () => {
+      if (v.videoHeight > v.videoWidth * 1.05 && media.closest('.feature.wide')) media.classList.add('tall');
+    });
     loadIO.observe(v);
     playIO.observe(v);
   }
@@ -1111,9 +1115,10 @@ function dishHtml(d) {
   return `
     <div class="sheet-media${hasVid ? ' has-video' : ''}${!d.image && !hasVid ? ' no-photo' : ''}">
       ${!d.image && !hasVid ? `<span aria-hidden="true">${esc(d.name.trim()[0] || '•')}</span>` : ''}
-      ${d.image ? `<img src="${esc(sizedImage(d.image, 900))}" alt="${esc(d.name)}" ${imgLoaded} style="object-position:${esc(d.focus || '50% 50%')}">` : ''}
+      ${d.image ? `<img class="sheet-bg" src="${esc(d.thumb || sizedImage(d.image, 320))}" alt="" aria-hidden="true" ${imgLoaded}>
+        <img class="sheet-fit" src="${esc(sizedImage(d.image, 900))}" alt="${esc(d.name)}" ${imgLoaded}>` : ''}
       ${hasVid ? `
-        <video src="${esc(d.video)}" muted loop playsinline preload="metadata" aria-hidden="true" tabindex="-1" style="object-position:${esc(d.focus || '50% 50%')}"></video>
+        <video src="${esc(sizedVideo(d.video, true))}" muted loop playsinline preload="auto" aria-hidden="true" tabindex="-1" style="object-position:${esc(d.focus || '50% 50%')}"></video>
         <span class="vspin" aria-hidden="true"></span>` : ''}
       <div class="badges">${d.badges.map(badgeHtml).join('')}</div>
       ${soldOut(d) ? '<span class="soldout-tag">Sold out today</span>' : ''}
