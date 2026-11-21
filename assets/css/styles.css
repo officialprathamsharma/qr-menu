@@ -260,6 +260,10 @@ button.table-chip:active { transform: scale(var(--press-scale)); }
 .feature.wide .media { aspect-ratio: 16 / 9; }
 /* Upright clips (shot on a phone) get an upright card instead of being cut to 16:9 */
 .feature.wide .media.tall { aspect-ratio: 4 / 5; }
+/* Upright clips fit inside any frame; the dish photo behind them is blurred to fill the sides */
+.upright > video { object-fit: contain; }
+.upright.playing > img { filter: blur(18px) brightness(0.8) saturate(1.15); transform: scale(1.15); }
+.upright:not(:has(> img)) { background: #1d1813; }
 .wide-media .media::after { content: ''; position: absolute; inset: 0; z-index: 1; background: linear-gradient(180deg, transparent 45%, rgba(20, 14, 10, 0.8) 100%); pointer-events: none; }
 .wide-media .badges { top: 10px; left: 10px; }
 .wide-title { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; padding: 0 14px 12px; color: #fff; }

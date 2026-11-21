@@ -895,7 +895,11 @@ function observeVideos(root) {
     v.addEventListener('waiting', () => media.classList.add('buffering'));
     v.addEventListener('error', () => failVideo(v));
     v.addEventListener('loadedmetadata', () => {
-      if (v.videoHeight > v.videoWidth * 1.05 && media.closest('.feature.wide')) media.classList.add('tall');
+      // Upright clips (shot on a phone) are shown whole, never cut: they sit on a soft blurred copy of the photo.
+      if (v.videoHeight > v.videoWidth * 1.05) {
+        media.classList.add('upright');
+        if (media.closest('.feature.wide')) media.classList.add('tall');
+      }
     });
     loadIO.observe(v);
     playIO.observe(v);
