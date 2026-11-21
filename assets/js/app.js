@@ -198,16 +198,19 @@ function safeInstagram(v) {
   } catch { return ''; }
 }
 function socialHtml() {
-  const g = safeGoogle(data.links?.google);
+  // Without the owner's review link, the Google button opens the café on Google Maps (search by name and
+  // area), where guests can tap "Write a review". Instagram shows once the owner adds their handle.
+  const ownG = safeGoogle(data.links?.google);
+  const place = [data.name, data.tagline].filter(Boolean).join(' ').replace(/[·|•]/g, ' ').replace(/\s+/g, ' ').trim();
+  const g = ownG || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place)}`;
   const ig = safeInstagram(data.links?.instagram);
-  if (!g && !ig) return '';
   const handle = ig ? `@${ig.split('/')[3]}` : '';
   return `
     <section class="social" aria-labelledby="social-title">
       <h2 id="social-title">Liked what you ate?</h2>
       <p>Tell people about ${esc(data.name)}, or see what’s new before your next visit.</p>
       <div class="social-actions">
-        ${g ? `<a class="social-btn" href="${esc(g)}" target="_blank" rel="noopener noreferrer"><img src="assets/icons/google-icon.svg" alt="" width="24" height="24"><span><b>Review us on Google</b><small>Takes a minute</small></span>${icons.arrow}</a>` : ''}
+        ${g ? `<a class="social-btn" href="${esc(g)}" target="_blank" rel="noopener noreferrer"><img src="assets/icons/google-icon.svg" alt="" width="24" height="24"><span><b>Review us on Google</b><small>${ownG ? 'Takes a minute' : 'Find us on Google Maps'}</small></span>${icons.arrow}</a>` : ''}
         ${ig ? `<a class="social-btn" href="${esc(ig)}" target="_blank" rel="noopener noreferrer"><img src="assets/icons/instagram-icon.svg" alt="" width="24" height="24"><span><b>Follow on Instagram</b><small>${esc(handle)}</small></span>${icons.arrow}</a>` : ''}
       </div>
     </section>`;
