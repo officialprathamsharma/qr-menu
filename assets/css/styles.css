@@ -391,9 +391,10 @@ body.framed .sheet-panel { max-width: 420px; }
 .sheet:not([data-kind='dish']) .sheet-close { background: var(--surface-2); border-color: transparent; }
 .sheet:not([data-kind='dish']) .sheet-grab span { background: var(--surface-3); box-shadow: none; }
 
-.sheet-media { width: 100%; aspect-ratio: 4 / 5; max-height: 62dvh; background: #1d1813; }
+.sheet-media { width: 100%; aspect-ratio: 4 / 5; max-height: 74dvh; background: #1d1813; }
 /* The dish page shows the whole photo or clip, never cut: it sits on a soft blurred copy of itself */
 .sheet-media > img.sheet-fit, .sheet-media > video { object-fit: contain; }
+.sheet-media.fill > img.sheet-fit, .sheet-media.fill > video { object-fit: cover; }
 .sheet-media > .sheet-bg { inset: -24px; width: calc(100% + 48px); height: calc(100% + 48px); filter: blur(22px) saturate(1.2) brightness(0.8); transform: none; }
 .sheet-media > .sheet-bg.ld { opacity: 1; }
 .sheet-media .badges { top: 16px; }

@@ -1063,9 +1063,26 @@ function openDish(id, replace = false) {
   const d = byId(id);
   if (!d) return;
   openSheet(dishHtml(d), { replace, kind: 'dish' });
+  // The dish page frame takes the shape of the dish's own photo or clip, so nothing is cut off and
+  // there are no side bars (very tall media stops at the height limit and is shown whole inside it).
+  const frame = $('#sheet .sheet-media');
+  // Landscape media fills a square frame instead (a little is trimmed at the sides) so it isn't a thin strip.
+  const fit = (w, h) => {
+    if (!frame || !w || !h) return;
+    const upright = h >= w;
+    frame.style.aspectRatio = upright ? `${w} / ${h}` : '1 / 1';
+    frame.classList.toggle('fill', !upright);
+  };
+  const photo = $('#sheet .sheet-fit');
   const v = $('#sheet .sheet-scroll video');
+  if (photo) {
+    const usePhoto = () => { if (!v || !v.videoWidth) fit(photo.naturalWidth, photo.naturalHeight); };
+    if (photo.complete) usePhoto(); else photo.addEventListener('load', usePhoto, { once: true });
+  }
   if (v) {
     const media = v.parentElement;
+    if (v.readyState >= 1) fit(v.videoWidth, v.videoHeight);
+    v.addEventListener('loadedmetadata', () => fit(v.videoWidth, v.videoHeight));
     v.addEventListener('playing', () => { media.classList.add('playing'); media.classList.remove('buffering'); });
     v.addEventListener('waiting', () => media.classList.add('buffering'));
     v.addEventListener('error', () => {
