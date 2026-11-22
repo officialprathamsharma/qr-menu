@@ -8,7 +8,7 @@ Supabase's free tier (optional; see [supabase/README.md](supabase/README.md)).
 
 - Guest menu: `/?r=arabico&t=12`
 - Dashboard: `/admin/?r=arabico`
-- Live: <https://officialprathamsharma.github.io/qr-menu/?r=arabico&t=7>
+- Live: <https://menu.heynomnom.in/?r=arabico&t=7>
 
 ## Run locally
 

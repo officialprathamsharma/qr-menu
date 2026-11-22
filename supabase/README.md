@@ -23,7 +23,7 @@ Videos use the most bandwidth. Ask owners for 720p clips under about 15 MB.
    The anon key is meant to be public. Row Level Security in `schema.sql` controls what it can do.
    **Never** put the `service_role` key in the site.
 4. **Authentication → URL Configuration**: set the Site URL to your dashboard, e.g.
-   `https://officialprathamsharma.github.io/qr-menu/admin/`, so password-reset emails link back to it.
+   `https://menu.heynomnom.in/admin/`, so password-reset emails link back to it.
 5. Commit and push. GitHub Pages redeploys in about a minute.
 
 ## Onboarding a restaurant
