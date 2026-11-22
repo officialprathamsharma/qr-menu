@@ -29,7 +29,7 @@ const pref = {
 
 let data;
 let menuSource = 'static'; // 'supabase' | 'local' | 'static' — ordering only works on a published (Supabase) menu
-let fmtPrice = (n) => `₹${n}`;
+let fmtPrice = (n) => String(n); // prices are shown as plain numbers, without a currency symbol
 const catById = new Map();
 const groupById = new Map();
 
@@ -122,7 +122,7 @@ async function init() {
   document.title = `${data.name} · Menu`;
   try {
     fmtPrice = new Intl.NumberFormat(data.locale || 'en-IN', {
-      style: 'currency', currency: data.currency || 'INR', maximumFractionDigits: 0,
+      maximumFractionDigits: 0,
     }).format;
   } catch { /* keep default */ }
 
@@ -256,7 +256,7 @@ function renderMenu() {
     <footer class="foot">
       ${socialHtml()}
       ${data.footerNote ? `<p class="foot-note">${esc(data.footerNote)}</p>` : ''}
-      <a class="made-by" href="https://heynomnom.in" target="_blank" rel="noopener"><span>Menu by</span><img src="assets/brand/nomnom-logo.png" alt="NomNom" width="64" height="38"></a>
+      <a class="made-by" href="https://heynomnom.in" target="_blank" rel="noopener"><span>Menu by</span><img src="assets/brand/nomnom-logo-t.png" alt="NomNom" width="64" height="38"></a>
     </footer>
     <div class="sheet" id="sheet" aria-hidden="true">
       <div class="sheet-backdrop" data-close></div>
@@ -641,7 +641,7 @@ function renderResults(feed, parsed, filters) {
         <p>Nothing matches that just yet.</p>
         <p class="empty-sub">Try one of these:</p>
         <div class="suggest">
-          ${['something cold without coffee', 'veg meal under ₹350', 'quick snack', 'spicy chicken', 'hot drink no coffee']
+          ${['something cold without coffee', 'veg meal under 350', 'quick snack', 'spicy chicken', 'hot drink no coffee']
             .map((s) => `<button type="button" class="chip" data-suggest="${esc(s)}">${esc(s)}</button>`).join('')}
         </div>
       </div>`;
