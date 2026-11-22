@@ -11,6 +11,10 @@
     "secondary": "#6B8F4E"
   },
   "footerNote": "Prices are in ₹ and exclusive of taxes. Please tell our team about any allergies.",
+  "links": {
+    "google": "https://maps.app.goo.gl/FpYRiKmG5FmjFpB37",
+    "instagram": "https://www.instagram.com/arabicodelhi/"
+  },
   "branches": [
     {
       "id": "janakpuri",
