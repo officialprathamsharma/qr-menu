@@ -256,7 +256,7 @@ function renderMenu() {
     <footer class="foot">
       ${socialHtml()}
       ${data.footerNote ? `<p class="foot-note">${esc(data.footerNote)}</p>` : ''}
-      <p class="made-by">Menu by <strong>NomNom</strong></p>
+      <a class="made-by" href="https://heynomnom.in" target="_blank" rel="noopener"><span>Menu by</span><img src="assets/brand/nomnom-logo.png" alt="NomNom" width="64" height="38"></a>
     </footer>
     <div class="sheet" id="sheet" aria-hidden="true">
       <div class="sheet-backdrop" data-close></div>
@@ -482,7 +482,7 @@ function categoryBlock(c) {
           <span class="chev">${icons.chevron}</span>
         </button>
       </h3>
-      <div class="cat-body" id="body-${esc(c.id)}" ${open ? '' : 'hidden'}>${open ? listHtml(list) : ''}</div>
+      <div class="cat-body" id="body-${esc(c.id)}" ${open ? '' : 'hidden'}>${open ? listHtml(byMedia(list)) : ''}</div>
     </section>`;
 }
 
@@ -518,7 +518,7 @@ function expand(block, c) {
   block.classList.add('open');
   $('.cat-head', block).setAttribute('aria-expanded', 'true');
   const body = $('.cat-body', block);
-  body.innerHTML = listHtml(dishesIn(c));
+  body.innerHTML = listHtml(byMedia(dishesIn(c)));
   body.hidden = false;
   observeVideos(body);
   slide(body, 0, Math.min(body.scrollHeight, innerHeight * 1.5));
@@ -573,7 +573,10 @@ function onScrollFab() {
     fabTick = false;
     const fab = $('#menu-fab');
     const ms = $('#menu-start');
-    const show = Boolean(ms) && ms.getBoundingClientRect().top < 0 && !state.sheetOpen;
+    // Hidden again near the bottom so it never covers the reviews or the NomNom credit.
+    const foot = $('.foot');
+    const atFoot = foot && foot.getBoundingClientRect().top < innerHeight - 40;
+    const show = Boolean(ms) && ms.getBoundingClientRect().top < 0 && !atFoot && !state.sheetOpen;
     fab.hidden = !ms;
     fab.classList.toggle('show', show);
   });
@@ -651,7 +654,7 @@ function renderResults(feed, parsed, filters) {
   else {
     const byCat = new Map();
     for (const { d } of list) byCat.set(d.category, [...(byCat.get(d.category) || []), d]);
-    for (const [, ds] of byCat) html += `<h3 class="results-cat">${esc(ctx.categoryLabel(ds[0]))}</h3>${listHtml(ds)}`;
+    for (const [, ds] of byCat) html += `<h3 class="results-cat">${esc(ctx.categoryLabel(ds[0]))}</h3>${listHtml(byMedia(ds))}`;
   }
   feed.innerHTML = `${summary}<div class="results">${html}</div>`;
 }
@@ -774,6 +777,10 @@ function renderHero(show) {
 // Items with a video show as full-width cards (like the featured cards at the top) with a 16:9 video,
 // about twice the height of a photo row. Everything stays in menu order.
 const hasVideo = (d) => Boolean(d.video) && !failedVideos.has(d.video);
+// Inside a section, dishes with a video come first (as big video cards), then dishes with a photo,
+// then the rest; sold-out dishes go last. Menu order is kept within each group.
+const mediaRank = (d) => (soldOut(d) ? 3 : hasVideo(d) ? 0 : d.image || d.thumb ? 1 : 2);
+const byMedia = (list) => list.map((d, i) => [d, i]).sort((a, b) => mediaRank(a[0]) - mediaRank(b[0]) || a[1] - b[1]).map(([d]) => d);
 const listHtml = (list) => list.map((d) => (hasVideo(d) ? wideCard(d) : rowCard(d))).join('');
 
 function wideCard(d) {

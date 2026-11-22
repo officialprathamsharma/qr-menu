@@ -357,7 +357,7 @@ button.table-chip:active { transform: scale(var(--press-scale)); }
 .suggest { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 10px; }
 
 /* ---------- Footer: reviews, Instagram, NomNom ---------- */
-.foot { padding: 36px var(--gutter) calc(96px + var(--safe-bottom)); text-align: center; }
+.foot { padding: 36px var(--gutter) calc(48px + var(--safe-bottom)); text-align: center; }
 .social { text-align: left; padding: 22px 16px 16px; border-radius: var(--radius-lg); background: var(--surface); border: 1px solid var(--line); }
 .social h2 { font: 700 23px/1.1 var(--display); letter-spacing: -0.015em; }
 .social p { margin-top: 6px; color: var(--muted); font-size: var(--fs-sm); }
@@ -370,8 +370,9 @@ button.table-chip:active { transform: scale(var(--press-scale)); }
 .social-btn small { color: var(--muted); font-size: var(--fs-xs); overflow: hidden; text-overflow: ellipsis; }
 .social-btn > svg { width: 18px; height: 18px; color: var(--muted); }
 .foot-note { margin-top: 22px; color: var(--muted); font-size: var(--fs-sm); line-height: 1.6; }
-.made-by { display: inline-flex; align-items: baseline; gap: 5px; margin-top: 24px; color: var(--muted); font-size: var(--fs-sm); }
-.made-by strong { color: var(--nn-orange); font: 800 17px var(--display); letter-spacing: -0.01em; }
+.made-by { display: inline-flex; flex-direction: column; align-items: center; gap: 8px; margin-top: 28px; min-height: 44px; color: var(--muted); font-size: var(--fs-xs); letter-spacing: 0.08em; text-decoration: none; }
+.made-by img { width: 64px; height: auto; transition: transform var(--dur-2) var(--ease-out); }
+.made-by:active img { transform: scale(var(--press-scale)); }
 
 /* ---------- Bottom sheet ---------- */
 .sheet { position: fixed; inset: 0; z-index: 50; pointer-events: none; }
