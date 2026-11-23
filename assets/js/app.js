@@ -8,7 +8,8 @@ import { loadMenu, withResolvedMedia, supabaseEnabled, getSupabase } from './sto
 import { parseQuery, mergeFilters, hasFilters, matchDish, scoreDish } from './search.js';
 
 const params = new URLSearchParams(location.search);
-const slug = (params.get('r') || 'arabico').toLowerCase().replace(/[^a-z0-9-]/g, '') || 'arabico';
+// Each restaurant's menu lives at ?r=<slug>. Without one, show NomNom's own page (never someone's menu).
+const slug = (params.get('r') || '').toLowerCase().replace(/[^a-z0-9-]/g, '');
 const tableNo = (params.get('t') || '').replace(/[^\w-]/g, '').slice(0, 8);
 const source = params.get('source') === 'local' ? 'local' : undefined;
 
@@ -140,12 +141,13 @@ function hideSplash() {
 const isDesktop = () => matchMedia('(hover: hover) and (pointer: fine)').matches && innerWidth > 820;
 
 async function init() {
+  if (!slug) { renderLanding(); hideSplash(); return; }
   try {
     const loaded = await loadMenu(slug, source);
     menuSource = loaded.source;
     data = await withResolvedMedia(loaded.data);
   } catch {
-    app.innerHTML = `<div class="gate"><div class="gate-card"><h1>Menu not found</h1><p>Please ask a member of staff for help.</p></div></div>`;
+    app.innerHTML = `<div class="gate"><div class="gate-card"><h1>Menu not found</h1><p>Please ask a member of staff for help, or scan the QR code on your table again.</p></div></div>`;
     hideSplash();
     return;
   }
@@ -204,6 +206,39 @@ function renderGate() {
   $('#preview').onclick = () => {
     document.body.classList.add('framed');
     renderMenu();
+  };
+}
+
+/* ---------- menu.heynomnom.in with no restaurant: NomNom's own page ---------- */
+const NOMNOM_EMAIL = 'contact@heynomnom.in';
+function renderLanding() {
+  document.title = 'NomNom · Video menus for restaurants';
+  app.innerHTML = `
+    <div class="gate landing"><div class="gate-card">
+      <img class="land-logo" src="assets/brand/nomnom-logo-t.png" alt="NomNom" width="128" height="76">
+      <h1>Menus guests actually want to read</h1>
+      <p>NomNom turns your menu into a QR video menu: short clips of every dish, stories, search and table ordering. Guests just scan, no app.</p>
+      <p class="land-note">Looking for a restaurant’s menu? Scan the QR code on your table.</p>
+      <form class="land-form" id="land-form" novalidate>
+        <h2>Get a video menu for your restaurant</h2>
+        <label>Your name<input name="name" autocomplete="name" required></label>
+        <label>Restaurant or café<input name="restaurant" autocomplete="organization" required></label>
+        <label>City<input name="city" autocomplete="address-level2"></label>
+        <label>Phone or email<input name="contact" autocomplete="tel" required></label>
+        <p class="land-err" id="land-err" role="alert" hidden>Please fill in your name, restaurant and a phone number or email.</p>
+        <button class="btn" type="submit">Send to NomNom ${icons.arrow}</button>
+        <small>Opens your email app with the details filled in. Or write to <a href="mailto:${NOMNOM_EMAIL}">${NOMNOM_EMAIL}</a>.</small>
+      </form>
+      <p class="land-links"><a href="?r=demo">See a sample menu</a> · <a href="https://heynomnom.in" rel="noopener">heynomnom.in</a></p>
+    </div></div>`;
+  $('#land-form').onsubmit = (e) => {
+    e.preventDefault();
+    const f = e.target.elements;
+    const v = (k) => f[k].value.trim();
+    if (!v('name') || !v('restaurant') || !v('contact')) { $('#land-err').hidden = false; return; }
+    $('#land-err').hidden = true;
+    const body = `Hi NomNom,\n\nI'd like a video menu for my restaurant.\n\nName: ${v('name')}\nRestaurant: ${v('restaurant')}\nCity: ${v('city') || '-'}\nContact: ${v('contact')}\n`;
+    location.href = `mailto:${NOMNOM_EMAIL}?subject=${encodeURIComponent(`Video menu for ${v('restaurant')}`)}&body=${encodeURIComponent(body)}`;
   };
 }
 

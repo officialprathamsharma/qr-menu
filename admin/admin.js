@@ -23,7 +23,7 @@ const slugify = (s) => String(s).toLowerCase().normalize('NFKD').replace(/[^\w\s
 
 const MODE = supabaseEnabled() ? 'live' : 'demo';
 const params = new URLSearchParams(location.search);
-let slug = (params.get('r') || 'arabico').toLowerCase().replace(/[^a-z0-9-]/g, '') || 'arabico';
+let slug = (params.get('r') || 'demo').toLowerCase().replace(/[^a-z0-9-]/g, '') || 'demo';
 
 let menu = null;
 // NomNom super admin: sees every restaurant (Partners panel) and can edit any menu, with confirmations.
