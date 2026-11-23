@@ -89,7 +89,7 @@ A desktop browser shows the "scan with your phone" screen; click **Preview on th
     card copy (short side 320 px, ~10–25 KB) that the menu list uses, so guests download about 7× less.
     Tap-to-set focus point keeps the dish in view when cropped.
   - Video upload: any phone clip. Before uploading, the browser re-encodes it to a phone-sized MP4 (H.264, 480p,
-    24 fps, ~1 Mbps, first 20 s, no sound), typically 1–3 MB (e.g. 4.6 MB → 1.5 MB). Uses WebCodecs (Chrome, Edge,
+    24 fps, ~1 Mbps, max 15 s (longer clips are refused), no sound), typically 1–3 MB (e.g. 4.6 MB → 1.5 MB). Uses WebCodecs (Chrome, Edge,
     Safari 16.4+); other browsers can upload clips under 8 MB as they are. Keep the tab open while it compresses.
     **Use frame as photo**; uploading a video with no photo creates the cover automatically.
   - Price, prep time, kcal, category, description, veg/egg/non-veg, vegan, gluten-free, contains coffee, spice,

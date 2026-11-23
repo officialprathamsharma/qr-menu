@@ -33,6 +33,7 @@ function ago(ts) {
 }
 
 function status(p) {
+  if (p.suspended) return ['paused', 'Paused · menu & QR off'];
   if (!p.published) return ['draft', 'Menu not published'];
   if (p.owner_last_sign_in) return ['live', 'Live · owner active'];
   if (p.invited_at) return ['invited', 'Live · owner invited'];
@@ -67,14 +68,15 @@ async function load() {
   }
   list = data || [];
   try { await loadQrLib(); } catch { /* QR thumbnails stay empty; the dialog shows the error */ }
-  const live = list.filter((p) => p.published).length;
+  const live = list.filter((p) => p.published && !p.suspended).length;
+  const paused = list.filter((p) => p.suspended).length;
   const active = list.filter((p) => p.owner_last_sign_in).length;
   view.innerHTML = `
     <div class="p-kpis">
       <div class="kpi"><span>Restaurants</span><b>${list.length}</b></div>
       <div class="kpi"><span>Menus live</span><b>${live}</b></div>
       <div class="kpi"><span>Owners signed in</span><b>${active}</b></div>
-      <div class="kpi"><span>Dishes on menus</span><b>${list.reduce((n, p) => n + p.items, 0)}</b></div>
+      <div class="kpi"><span>${paused ? 'Paused' : 'Dishes on menus'}</span><b>${paused || list.reduce((n, p) => n + p.items, 0)}</b></div>
     </div>
     <div class="p-tools"><input class="input" id="p-search" type="search" placeholder="Search by name, link, owner or city" aria-label="Search partners"></div>
     <div class="p-list" id="p-list"></div>`;
@@ -93,7 +95,7 @@ function drawList(q) {
     let qr = '';
     try { qr = window.qrcode ? qrSvg(url, 92) : ''; } catch { /* ignore */ }
     return `
-    <article class="p-card" data-slug="${esc(p.slug)}">
+    <article class="p-card${p.suspended ? ' is-paused' : ''}" data-slug="${esc(p.slug)}">
       <button class="p-qr" data-act="qr" aria-label="Main QR code for ${esc(p.name)}">${qr}</button>
       <div class="p-main">
         <div class="p-head"><h3>${esc(p.name)}</h3><span class="pill ${tone}">${label}</span></div>
@@ -108,6 +110,7 @@ function drawList(q) {
         <button class="btn ghost sm" data-act="qr">QR code</button>
         <button class="btn ghost sm" data-act="invite">${p.invited_at ? 'Resend welcome email' : 'Send welcome email'}</button>
         <button class="btn ghost sm" data-act="details">Details</button>
+        <button class="btn ${p.suspended ? 'sm' : 'danger sm'}" data-act="pause">${p.suspended ? 'Resume menu' : 'Pause menu'}</button>
       </div>
     </article>`;
   }).join('');
@@ -121,7 +124,29 @@ function drawList(q) {
     if (act === 'edit') editMenu(p);
     if (act === 'invite') invite(p);
     if (act === 'details') details(p);
+    if (act === 'pause') setPaused(p, !p.suspended);
   };
+}
+
+/* ---------- Pause / resume (e.g. unpaid): the link and every QR code stop working ---------- */
+async function setPaused(p, pause) {
+  const ok = await confirmDialog({
+    title: pause ? `Pause ${p.name}'s menu?` : `Resume ${p.name}'s menu?`,
+    body: pause
+      ? `Guests opening <b>${esc(menuUrl(p.slug).replace(/^https?:\/\//, ''))}</b> or scanning any of its QR codes (main and table cards) will see “Menu unavailable”, and table ordering stops. The owner can still sign in. Nothing is deleted; you can resume any time.`
+      : `The menu link, all QR codes and table ordering (if switched on) work again right away.`,
+    confirm: pause ? 'Pause menu' : 'Resume menu',
+    danger: pause,
+  });
+  if (!ok) return;
+  const { error, count } = await ctx.sb.from('menus').update({ suspended: pause }, { count: 'exact' }).eq('slug', p.slug);
+  if (error || count === 0) {
+    const msg = error?.message || 'not allowed';
+    ctx.toast(/suspended/.test(msg) ? 'Run supabase/pause-and-cleanup.sql in Supabase first.' : `Couldn't ${pause ? 'pause' : 'resume'}: ${msg}`, true);
+    return;
+  }
+  ctx.toast(pause ? `${p.name} is paused. Its menu and QR codes now show “Menu unavailable”.` : `${p.name} is live again.`);
+  load();
 }
 
 /* ---------- Edit a partner's menu: always ask first ---------- */

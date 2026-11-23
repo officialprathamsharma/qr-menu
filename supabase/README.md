@@ -42,6 +42,11 @@ One-time: run [`admin.sql`](admin.sql) (makes the login that owns the `demo` men
 5. Main QR: `https://menu.heynomnom.in/?r=<slug>`. Table QR cards: open the menu → **Tables & QR**
    (`?r=<slug>&t=<table number>`).
 
+**Pause menu** (on each partner card, e.g. when a restaurant hasn't paid): after you confirm, the menu link and every
+QR code (main and table cards) show "Menu unavailable" and table ordering stops. Nothing is deleted. The owner can still
+sign in and sees a "paused" banner. **Resume menu** turns everything back on. Needs
+[`pause-and-cleanup.sql`](pause-and-cleanup.sql) (run once).
+
 Editing a partner's menu always asks first, shows a banner while you edit, and asks again before publishing or
 switching table ordering. Owners still only see their own restaurant.
 
@@ -76,3 +81,6 @@ file). It only fetches Zomato, EazyDiner and Swiggy Dineout pages.
 - Dashboard: **Save & publish** writes the whole menu JSON. Photos are resized in the browser (max 1280 px, WebP)
   before upload. Videos upload as-is, up to 50 MB.
 - Files are stored as `menu-media/<slug>/{photos,videos,brand}/…`. Owners can only write inside their own folder.
+- Item videos can be up to 15 seconds; longer clips are refused at upload with a note to trim them.
+- Clean-up: after each **Save & publish**, files in `<slug>/` that the published menu no longer uses are deleted
+  (a replaced or removed photo/video goes straight away; unused uploads that were never published go after a day).

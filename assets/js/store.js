@@ -67,6 +67,11 @@ export async function loadMenu(slug, preferred) {
     const sb = await getSupabase();
     const { data, error } = await sb.from('menus').select('data').eq('slug', slug).maybeSingle();
     if (!error && data?.data && Object.keys(data.data).length) return { data: data.data, source: 'supabase' };
+    // A paused menu is hidden from guests; never fall back to a bundled copy of it.
+    if (!error && !data) {
+      const { data: paused } = await sb.rpc('menu_suspended', { p_slug: slug });
+      if (paused === true) { const e = new Error('This menu is paused.'); e.suspended = true; throw e; }
+    }
   }
   return { data: await loadStatic(slug), source: 'static' };
 }
@@ -133,4 +138,34 @@ export async function withResolvedMedia(data) {
     }),
   );
   return copy;
+}
+
+/**
+ * After a publish: delete this restaurant's uploaded files that the new menu no longer uses.
+ * A file goes when it was in the previous published menu (a replaced/removed photo or video), or when
+ * it's over a day old and unused (uploads that were never published). Fresh unused uploads are kept,
+ * since another device may still have them in an unsaved draft. Returns how many files were deleted.
+ */
+export async function cleanupMedia(slug, published, previous) {
+  const sb = await getSupabase();
+  const bucket = sb.storage.from(CONFIG.mediaBucket);
+  const now = JSON.stringify(published || {});
+  const before = JSON.stringify(previous || {});
+  const dayAgo = Date.now() - 864e5;
+  const doomed = [];
+  for (const kind of ['videos', 'photos', 'brand']) {
+    const { data: files, error } = await bucket.list(`${slug}/${kind}`, { limit: 1000 });
+    if (error || !files) continue;
+    for (const f of files) {
+      if (!f.id) continue; // a sub-folder
+      const path = `${slug}/${kind}/${f.name}`;
+      if (now.includes(path)) continue;
+      const old = Date.parse(f.created_at || '') < dayAgo;
+      if (before.includes(path) || old) doomed.push(path);
+    }
+  }
+  if (!doomed.length) return 0;
+  const { data, error } = await bucket.remove(doomed);
+  if (error) throw error;
+  return data?.length || 0;
 }

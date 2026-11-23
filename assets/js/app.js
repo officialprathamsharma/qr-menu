@@ -146,8 +146,10 @@ async function init() {
     const loaded = await loadMenu(slug, source);
     menuSource = loaded.source;
     data = await withResolvedMedia(loaded.data);
-  } catch {
-    app.innerHTML = `<div class="gate"><div class="gate-card"><h1>Menu not found</h1><p>Please ask a member of staff for help, or scan the QR code on your table again.</p></div></div>`;
+  } catch (err) {
+    app.innerHTML = err?.suspended
+      ? `<div class="gate"><div class="gate-card"><h1>Menu unavailable</h1><p>This menu isn't available right now. Please ask a member of staff for the menu.</p></div></div>`
+      : `<div class="gate"><div class="gate-card"><h1>Menu not found</h1><p>Please ask a member of staff for help, or scan the QR code on your table again.</p></div></div>`;
     hideSplash();
     return;
   }

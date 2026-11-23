@@ -428,3 +428,6 @@ main.view.wide { max-width: 1120px; }
 .pick-head { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 8px 0 2px; }
 .pick-item { display: flex; }
 .pick-item[hidden], .pick-group[hidden] { display: none; }
+.pill.paused { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 45%, transparent); }
+.p-card.is-paused .p-qr { opacity: .35; }
+.admin-strip.paused { background: color-mix(in srgb, var(--danger) 16%, transparent); border-color: color-mix(in srgb, var(--danger) 40%, transparent); color: var(--text); }

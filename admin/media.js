@@ -2,7 +2,7 @@
    Media processing in the owner's browser, before upload.
    - Photos: a full copy (≤1280 px) for the dish page and a small card copy (short side 320 px, ~15–25 KB)
      for the menu list, so guests download about 7× less.
-   - Videos: re-encoded to a phone-sized MP4 (H.264, short side 480 px, 24 fps, ~1 Mbps, first 20 s,
+   - Videos: re-encoded to a phone-sized MP4 (H.264, short side 480 px, 24 fps, ~1 Mbps, max 15 s,
      no sound), typically 1.5–3 MB. Uses the browser's built-in video encoder (WebCodecs) and mp4-muxer to
      package it. Free plans can't transcode on the server, so the small file is what gets stored.
    ========================================================== */
@@ -43,13 +43,33 @@ export async function makePhotoSet(source) {
   return { full, thumb };
 }
 
+/** Item videos are short loops: anything longer than this is refused at upload. */
+export const MAX_VIDEO_SECONDS = 15;
+
+/** Length of a video file in seconds (NaN if the browser can't read it). */
+export function videoDuration(file) {
+  return new Promise((resolve) => {
+    const url = URL.createObjectURL(file);
+    const v = Object.assign(document.createElement('video'), { src: url, muted: true, preload: 'metadata' });
+    const done = (n) => { URL.revokeObjectURL(url); resolve(n); };
+    v.onloadedmetadata = () => {
+      if (Number.isFinite(v.duration)) return done(v.duration);
+      // Some MOV/WebM files report Infinity until you seek to the end.
+      v.ontimeupdate = () => { v.ontimeupdate = null; done(v.duration); };
+      v.currentTime = 1e9;
+    };
+    v.onerror = () => done(NaN);
+    setTimeout(() => done(NaN), 8000);
+  });
+}
+
 export const canCompressVideo = () => 'VideoEncoder' in window && 'VideoFrame' in window;
 
 /**
  * Re-encode a video file for phones. Returns { blob, width, height, seconds }.
  * onProgress(0..1) is called as frames are encoded.
  */
-export async function compressVideo(file, { shortSide = 480, maxSeconds = 20, fps = 24, bitrate = 1_000_000, onProgress } = {}) {
+export async function compressVideo(file, { shortSide = 480, maxSeconds = MAX_VIDEO_SECONDS, fps = 24, bitrate = 1_000_000, onProgress } = {}) {
   if (!canCompressVideo()) throw new Error('This browser cannot compress video. Use Chrome, Edge or Safari 16.4+.');
   const { Muxer, ArrayBufferTarget } = await import(MUXER);
 

@@ -6,10 +6,11 @@
    ========================================================== */
 import {
   supabaseEnabled, getSupabase, loadMenu, loadStatic, saveLocal, clearLocal, saveSupabase, uploadMedia, resolveMedia,
+  cleanupMedia,
 } from '../assets/js/store.js';
 import { readSpreadsheet, rowsToItems, applyImport, TEMPLATE_CSV } from './importer.js';
 import { startOrders, renderOrders, renderInsights, renderTables } from './ops.js';
-import { makePhotoSet, compressVideo, canCompressVideo } from './media.js';
+import { makePhotoSet, compressVideo, canCompressVideo, videoDuration, MAX_VIDEO_SECONDS } from './media.js';
 import { CONFIG } from '../assets/js/config.js';
 import { renderPartners, partnerFor, invite, setPartnerCtx } from './partners.js';
 import { confirmDialog, openDialog } from './dialog.js';
@@ -23,6 +24,7 @@ const slugify = (s) => String(s).toLowerCase().normalize('NFKD').replace(/[^\w\s
 
 const MODE = supabaseEnabled() ? 'live' : 'demo';
 const params = new URLSearchParams(location.search);
+let menuPaused = false; // set by NomNom (super admin), e.g. unpaid
 let slug = (params.get('r') || 'demo').toLowerCase().replace(/[^a-z0-9-]/g, '') || 'demo';
 
 let menu = null;
@@ -155,7 +157,8 @@ async function boot() {
     if (isAdmin) {
       setPartnerCtx(adminCtx);
       if (!params.has('r')) return renderPartners(adminCtx);
-      const { data: row, error } = await sb.from('menus').select('data, owner_id').eq('slug', slug).maybeSingle();
+      const { data: row, error } = await sb.from('menus').select('*').eq('slug', slug).maybeSingle();
+      menuPaused = Boolean(row?.suspended);
       if (error) return fatal(`Couldn't load that restaurant: ${error.message}`);
       if (!row) return fatal(`There's no restaurant with the link name "${slug}".`, true);
       adminEditing = row.owner_id !== session.user.id;
@@ -180,7 +183,8 @@ async function boot() {
     if (error) return fatal(`Couldn't load your restaurant: ${error.message}`);
     if (!rows?.length) return fatal('This account is not linked to a restaurant yet. Please contact NomNom at contact@heynomnom.in.', true);
     slug = rows.find((r) => r.slug === slug)?.slug || rows[0].slug;
-    const { data: row } = await sb.from('menus').select('data').eq('slug', slug).single();
+    const { data: row } = await sb.from('menus').select('*').eq('slug', slug).single();
+    menuPaused = Boolean(row?.suspended);
     menu = row?.data && Object.keys(row.data).length ? row.data : null;
     if (!menu) return renderStart();
   } else {
@@ -350,6 +354,7 @@ function renderApp() {
       ${[['orders', 'Orders'], ['items', 'Items'], ['categories', 'Categories'], ['branding', 'Branding'], ['insights', 'Insights'], ['tables', 'Tables & QR']]
         .map(([id, l]) => `<button class="tab" role="tab" data-view="${id}" aria-selected="${view === id}">${l}</button>`).join('')}
     </nav>
+    ${menuPaused ? `<div class="admin-strip paused" role="note">${adminEditing ? 'This menu is <b>paused</b>: guests see “Menu unavailable”. Resume it from Partners.' : 'Your menu is <b>paused</b>, so guests see “Menu unavailable”. Please contact NomNom at <a href="mailto:contact@heynomnom.in">contact@heynomnom.in</a>.'}</div>` : ''}
     ${adminEditing ? `<div class="admin-strip" role="note">Super admin: you're editing <b>${esc(menu.name)}</b>'s menu. Changes go live for their guests when you publish.</div>` : ''}
     <main class="view" id="view"></main>`;
 
@@ -463,10 +468,15 @@ async function publish() {
   btn.disabled = true;
   btn.textContent = 'Saving…';
   try {
-    if (MODE === 'live') await saveSupabase(slug, menu);
-    else await saveLocal(slug, menu);
+    let previous = null;
+    if (MODE === 'live') {
+      previous = (await (await getSupabase()).from('menus').select('data').eq('slug', slug).maybeSingle()).data?.data || null;
+      await saveSupabase(slug, menu);
+    } else await saveLocal(slug, menu);
     setDirty(false);
     toast(MODE === 'live' ? 'Published — guests see the new menu now.' : 'Saved in this browser. Use Preview to see it.');
+    // Remove photos/videos the published menu no longer uses (replaced or deleted items). Never blocks publishing.
+    if (MODE === 'live') cleanupMedia(slug, menu, previous).catch((err) => console.warn('Media clean-up skipped:', err));
     // First publish of a new partner's menu: offer to send the owner their welcome email.
     if (adminEditing && partner && !partner.invited_at && partner.owner_email) {
       partner = { ...partner, published: true };
@@ -799,7 +809,7 @@ function openEditor(dish) {
             <p class="progress" id="photo-progress" aria-live="polite"></p>
           </div>
           <div class="media-card">
-            <h4>Video <span class="hint">Optional · compressed to 480p, first 20 s</span></h4>
+            <h4>Video <span class="hint">Optional · up to 15 s, compressed to 480p</span></h4>
             <div class="video-box" id="video-box">${videoInner(d)}</div>
             <div class="media-actions">
               <label class="btn ghost sm">${d.video ? 'Replace' : 'Upload'}<input type="file" accept="video/mp4,video/webm,video/quicktime" id="video-file" class="sr-only"></label>
@@ -809,7 +819,7 @@ function openEditor(dish) {
             <p class="progress" id="video-progress" aria-live="polite"></p>
           </div>
         </div>
-        <p class="hint">Best results: landscape 4:3 or 16:9, bright, the dish in the centre. Videos: any phone clip works. It's shrunk here to a 480p, ≤20 s silent loop (about 1.5–3 MB) before uploading, so it loads fast on mobile data.</p>
+        <p class="hint">Best results: landscape 4:3 or 16:9, bright, the dish in the centre. Videos: any phone clip up to 15 seconds. It's shrunk here to a 480p silent loop (about 1–2 MB) before uploading, so it loads fast on mobile data.</p>
       </fieldset>
 
       <fieldset class="fs">
@@ -938,10 +948,14 @@ function openEditor(dish) {
     const mb = file.size / 1048576;
     if (mb > MAX_VIDEO_MB) return toast(`That video is ${mb.toFixed(0)} MB. Please trim it to a short clip (under ${MAX_VIDEO_MB} MB).`, true);
     const p = $('#video-progress', drawer);
+    const secs = await videoDuration(file);
+    if (secs > MAX_VIDEO_SECONDS + 0.5) {
+      return toast(`That video is ${Math.round(secs)} seconds. Item videos can be up to ${MAX_VIDEO_SECONDS} seconds: please trim it on your phone (Edit → trim) and upload again.`, true);
+    }
     try {
       let upload = file;
       if (canCompressVideo()) {
-        // Shrink it for phones before it leaves this computer: 480p, first 20 s, no sound.
+        // Shrink it for phones before it leaves this computer: 480p, no sound.
         p.textContent = 'Compressing for phones… 0%';
         const out = await compressVideo(file, { onProgress: (f) => { p.textContent = `Compressing for phones… ${Math.round(f * 100)}% · keep this tab open`; } });
         upload = out.blob;
@@ -1062,7 +1076,7 @@ function photoInner(d) {
   return `<img data-media="${esc(d.image)}" alt="Photo of ${esc(d.name)}" style="object-position:${esc(d.focus || '50% 50%')}"><span class="focus-dot" style="left:${esc(x)};top:${esc(y)}"></span>`;
 }
 function videoInner(d) {
-  if (!d.video) return '<div class="media-empty">No video. Short 8–20 s loops work best.</div>';
+  if (!d.video) return '<div class="media-empty">No video. Up to 15 seconds; short 8–15 s loops work best.</div>';
   return `<video data-media="${esc(d.video)}" controls muted playsinline loop preload="metadata" crossorigin="anonymous"></video>`;
 }
 
