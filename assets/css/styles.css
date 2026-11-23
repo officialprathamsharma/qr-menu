@@ -279,10 +279,10 @@ button.table-chip:active { transform: scale(var(--press-scale)); }
 .pill svg { width: 12px; height: 12px; color: var(--accent-ink); }
 .pill.spice, .pill.spice svg { color: var(--danger); gap: 1px; }
 .badges { position: absolute; top: 12px; left: 12px; z-index: 2; display: flex; flex-wrap: wrap; gap: 6px; max-width: 78%; }
-.badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: var(--radius-pill); font-size: var(--fs-2xs); font-weight: 700; color: var(--text); background: rgba(255, 255, 255, 0.94); }
+.badge { display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px; border-radius: var(--radius-pill); font-size: var(--fs-2xs); font-weight: 700; color: #221c17; background: rgba(255, 255, 255, 0.94); }
 .badge.primary { background: var(--primary); color: var(--on-primary); }
 .badge.secondary { background: var(--secondary); color: var(--on-secondary); }
-.glass { background: rgba(255, 255, 255, 0.94); color: var(--text); border: 1px solid var(--line); }
+.glass { background: rgba(255, 255, 255, 0.94); color: #221c17; border: 1px solid rgba(34, 28, 23, 0.1); }
 
 /* Veg / non-veg mark */
 .vnv { width: 15px; height: 15px; border: 1.5px solid currentColor; border-radius: 3px; display: inline-grid; place-items: center; flex: none; background: #fff; }

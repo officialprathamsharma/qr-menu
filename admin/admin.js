@@ -104,6 +104,14 @@ const fmt = (n) => {
     return new Intl.NumberFormat(menu.locale || 'en-IN', { style: 'currency', currency: menu.currency || 'INR', maximumFractionDigits: 0 }).format(n);
   } catch { return `₹${n}`; }
 };
+/* Dark or light text for a background colour (same rule as the guest menu). */
+function readableInk(hex) {
+  const [r, g, b] = hex.slice(1).match(/.{2}/g).map((x) => {
+    const c = parseInt(x, 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.36 ? '#221c17' : '#f6f1ea';
+}
 const categories = () => (menu.sections || []).filter((s) => s.type === 'category');
 const rails = () => (menu.sections || []).filter((s) => s.type === 'tag');
 const vegKind = (d) => (d.diet?.veg ? 'veg' : d.diet?.egg ? 'egg' : 'nonveg');
@@ -1307,8 +1315,10 @@ function renderBranding() {
     </div>
     <div class="panel">
       <h3>Colours</h3>
-      <p>The menu sits on a warm cream page. Primary is used for buttons, the Add control and active filters; secondary for badges.</p>
+      <p>Background is the whole menu page; text switches to light or dark automatically so it stays readable. Primary is used for buttons, the Add control and active filters; secondary for badges.</p>
       <div class="brand-grid">
+        <label class="field">Page background<span class="color-field"><input type="color" data-c="background" value="${esc(t.background || '#fbf6ef')}"><input class="input" data-ch="background" value="${esc(t.background || '#fbf6ef')}" maxlength="7"></span>
+          ${t.background ? '<button type="button" class="btn ghost sm" id="bg-reset" style="margin-top:6px;align-self:flex-start">Use default cream</button>' : ''}</label>
         <label class="field">Primary<span class="color-field"><input type="color" data-c="primary" value="${esc(t.primary || '#d4a373')}"><input class="input" data-ch="primary" value="${esc(t.primary || '#d4a373')}" maxlength="7"></span></label>
         <label class="field">Secondary<span class="color-field"><input type="color" data-c="secondary" value="${esc(t.secondary || '#6b8f4e')}"><input class="input" data-ch="secondary" value="${esc(t.secondary || '#6b8f4e')}" maxlength="7"></span></label>
       </div>
@@ -1386,11 +1396,15 @@ function renderBranding() {
   $('#hero-label').oninput = (e) => { e.stopPropagation(); setHero({ label: e.target.value.trim() }); };
   const paintPreview = () => {
     const p = menu.theme.primary; const s = menu.theme.secondary;
+    const bg = menu.theme.background || '#fbf6ef';
+    const ink = readableInk(bg);
+    $('#pv').style.cssText = `margin-top:14px;background:${esc(bg)};color:${ink};padding:14px;border-radius:12px;border:1px solid rgba(127,127,127,.25)`;
     $('#pv').innerHTML = `
-      <span class="pv-chip" style="background:${esc(p)};color:#0b0b0b">Popular</span>
-      <span class="pv-chip" style="background:#fbf6ef;color:#221c17;border:1px solid rgba(34,28,23,.14)">Veg</span>
-      <span style="color:#221c17;font-weight:600">₹329</span>
-      <span class="pv-chip" style="background:${esc(s)};color:#fff;height:24px;font-size:11px">Signature</span>`;
+      <span class="pv-chip" style="background:${esc(p)};color:${readableInk(p)}">Popular</span>
+      <span class="pv-chip" style="background:transparent;color:${ink};border:1px solid currentColor;opacity:.8">Veg</span>
+      <span style="color:${ink};font-weight:600">₹329</span>
+      <span style="color:${ink};opacity:.7;font-size:13px">Menu text</span>
+      <span class="pv-chip" style="background:${esc(s)};color:${readableInk(s)};height:24px;font-size:11px">Signature</span>`;
   };
   paintPreview();
   v.oninput = (e) => {
@@ -1408,6 +1422,8 @@ function renderBranding() {
       setDirty();
     }
   };
+  const bgReset = $('#bg-reset');
+  if (bgReset) bgReset.onclick = () => { delete menu.theme.background; setDirty(); renderBranding(); };
   v.onchange = (e) => { if (e.target.dataset.b === 'currency') { menu.currency = e.target.value; setDirty(); } };
   $('#logo-file').onchange = async (e) => {
     const file = e.target.files[0];

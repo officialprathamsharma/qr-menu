@@ -82,7 +82,7 @@ function readableOn(hex) {
   });
   return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.36 ? '#0b0b0b' : '#ffffff';
 }
-function applyTheme({ primary, secondary } = {}) {
+function applyTheme({ primary, secondary, background } = {}) {
   const root = document.documentElement.style;
   const p = normHex(primary) || '#d9a441';
   const s = normHex(secondary) || '#b2453a';
@@ -90,6 +90,38 @@ function applyTheme({ primary, secondary } = {}) {
   root.setProperty('--secondary', s);
   root.setProperty('--on-primary', readableOn(p));
   root.setProperty('--on-secondary', readableOn(s));
+  applyBackground(normHex(background));
+}
+
+/* Page background chosen by the restaurant. Every surface, line and text colour is derived from it,
+   with light text on a dark page and dark text on a light one. No background = the default cream. */
+function applyBackground(bg) {
+  const root = document.documentElement.style;
+  const keys = ['--bg', '--surface', '--surface-2', '--surface-3', '--glass', '--line', '--line-strong', '--text', '--muted', '--faint', '--accent-ink', '--scrim'];
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (!bg) {
+    for (const k of keys) root.removeProperty(k);
+    root.removeProperty('color-scheme');
+    meta?.setAttribute('content', '#fff6ed');
+    return;
+  }
+  const dark = readableOn(bg) === '#ffffff';
+  const ink = dark ? '#f6f1ea' : '#221c17';
+  const mix = (a, pct, b) => `color-mix(in oklab, ${a} ${pct}%, ${b})`;
+  root.setProperty('--bg', bg);
+  root.setProperty('--surface', dark ? mix(bg, 88, '#ffffff') : mix(bg, 25, '#ffffff'));
+  root.setProperty('--surface-2', mix(bg, 92, ink));
+  root.setProperty('--surface-3', mix(bg, 85, ink));
+  root.setProperty('--glass', `color-mix(in srgb, ${bg} 86%, transparent)`);
+  root.setProperty('--line', `color-mix(in srgb, ${ink} ${dark ? 14 : 10}%, transparent)`);
+  root.setProperty('--line-strong', `color-mix(in srgb, ${ink} ${dark ? 24 : 18}%, transparent)`);
+  root.setProperty('--text', ink);
+  root.setProperty('--muted', mix(ink, 72, bg));
+  root.setProperty('--faint', mix(ink, 66, bg));
+  root.setProperty('--accent-ink', dark ? 'color-mix(in oklab, var(--primary) 70%, #ffffff)' : 'color-mix(in oklab, var(--primary) 44%, #221c17)');
+  root.setProperty('--scrim', dark ? 'rgba(0, 0, 0, 0.6)' : 'rgba(34, 24, 16, 0.42)');
+  root.setProperty('color-scheme', dark ? 'dark' : 'light');
+  meta?.setAttribute('content', bg);
 }
 
 /* ---------- Boot ---------- */
