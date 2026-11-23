@@ -483,7 +483,7 @@ function bindTooltips(root) {
 /* ==========================================================
    Tables & QR codes (+ Wi-Fi join code)
    ========================================================== */
-function loadQrLib() {
+export function loadQrLib() {
   if (window.qrcode) return Promise.resolve(window.qrcode);
   return new Promise((resolve, reject) => {
     const s = Object.assign(document.createElement('script'), { src: QR_LIB, onload: () => resolve(window.qrcode), onerror: reject });
@@ -491,7 +491,7 @@ function loadQrLib() {
   });
 }
 
-function qrSvg(text, size = 200) {
+export function qrSvg(text, size = 200) {
   const qr = window.qrcode(0, 'M');
   qr.addData(text);
   qr.make();

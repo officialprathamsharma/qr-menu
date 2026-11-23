@@ -11,6 +11,8 @@ import { readSpreadsheet, rowsToItems, applyImport, TEMPLATE_CSV } from './impor
 import { startOrders, renderOrders, renderInsights, renderTables } from './ops.js';
 import { makePhotoSet, compressVideo, canCompressVideo } from './media.js';
 import { CONFIG } from '../assets/js/config.js';
+import { renderPartners, partnerFor, invite, setPartnerCtx } from './partners.js';
+import { confirmDialog } from './dialog.js';
 
 const root = document.getElementById('admin');
 const $ = (s, el = document) => el.querySelector(s);
@@ -24,11 +26,19 @@ const params = new URLSearchParams(location.search);
 let slug = (params.get('r') || 'arabico').toLowerCase().replace(/[^a-z0-9-]/g, '') || 'arabico';
 
 let menu = null;
+// NomNom super admin: sees every restaurant (Partners panel) and can edit any menu, with confirmations.
+let isAdmin = false;
+let adminEditing = false; // an admin editing a restaurant that isn't their own
+let partner = null; // that restaurant's partner row (name, owner email, invited_at…)
 // Invite and password-reset emails land here with "#…&type=invite|recovery" in the URL.
 // Read it before supabase-js consumes the hash, so we can ask the owner to choose a password.
 const authLink = new URLSearchParams(location.hash.slice(1));
 const linkType = authLink.get('type');
 const linkError = authLink.get('error_description');
+// Welcome and reset emails link here with ?token_hash=…&type=invite|recovery. The one-time token is only used when
+// the owner submits a new password, so email link scanners that open the page can't use it up.
+const tokenHash = params.get('token_hash');
+const tokenType = params.get('type') === 'recovery' ? 'recovery' : 'invite';
 let dirty = false;
 let view = supabaseEnabled() ? 'orders' : 'items';
 let itemSearch = '';
@@ -128,12 +138,39 @@ async function savePhotoSet(d, full, thumb) {
 async function boot() {
   if (MODE === 'live') {
     const sb = await getSupabase();
+    if (tokenHash) return renderSetPassword(tokenType, '', tokenHash);
     const { data: { session } } = await sb.auth.getSession();
     if (!session) return renderLogin(linkError ? `That link didn't work: ${linkError}. Ask for a new one below.` : '');
     if (linkType === 'invite' || linkType === 'recovery') return renderSetPassword(linkType, session.user.email);
+    try { isAdmin = Boolean((await sb.rpc('is_admin')).data); } catch { isAdmin = false; }
+    const adminCtx = { sb, root, toast, signOut, userId: session.user.id };
+    if (isAdmin) {
+      setPartnerCtx(adminCtx);
+      if (!params.has('r')) return renderPartners(adminCtx);
+      const { data: row, error } = await sb.from('menus').select('data, owner_id').eq('slug', slug).maybeSingle();
+      if (error) return fatal(`Couldn't load that restaurant: ${error.message}`);
+      if (!row) return fatal(`There's no restaurant with the link name "${slug}".`, true);
+      adminEditing = row.owner_id !== session.user.id;
+      partner = adminEditing ? await partnerFor(sb, slug) : null;
+      menu = row.data && Object.keys(row.data).length ? row.data : null;
+      // Opening someone else's live menu always asks first (the Partners panel asks before linking here).
+      if (adminEditing && menu && !params.has('confirmed')) {
+        const ok = await confirmDialog({
+          title: `Edit ${partner?.name || menu.name}'s menu?`,
+          body: 'This is a live menu. Guests see your changes as soon as you press <b>Save &amp; publish</b>, and you\'ll be asked to confirm again before anything goes live.',
+          confirm: 'Open editor', cancel: 'Back to partners',
+        });
+        if (!ok) { location.href = location.pathname; return; }
+      }
+      if (params.has('confirmed')) { params.delete('confirmed'); history.replaceState(null, '', `${location.pathname}?${params}${location.hash}`); }
+      if (!menu) return renderStart();
+      normalize();
+      renderApp();
+      return;
+    }
     const { data: rows, error } = await sb.from('menus').select('slug').eq('owner_id', session.user.id).order('slug');
     if (error) return fatal(`Couldn't load your restaurant: ${error.message}`);
-    if (!rows?.length) return fatal('This account is not linked to a restaurant yet. Please contact QR Menu support.', true);
+    if (!rows?.length) return fatal('This account is not linked to a restaurant yet. Please contact NomNom at contact@heynomnom.in.', true);
     slug = rows.find((r) => r.slug === slug)?.slug || rows[0].slug;
     const { data: row } = await sb.from('menus').select('data').eq('slug', slug).single();
     menu = row?.data && Object.keys(row.data).length ? row.data : null;
@@ -163,13 +200,13 @@ function fatal(msg, withSignOut = false) {
   $('#signout')?.addEventListener('click', signOut);
 }
 
-function renderSetPassword(type, email) {
-  history.replaceState(null, '', location.pathname + location.search);
+function renderSetPassword(type, email, hash = '') {
+  history.replaceState(null, '', location.pathname);
   root.innerHTML = `
     <div class="login">
       <form id="setpw" novalidate>
         <h1>${type === 'invite' ? 'Welcome' : 'Reset password'}</h1>
-        <p>Choose a password for <b>${esc(email || '')}</b>. You'll use it to sign in to your dashboard.</p>
+        <p>Choose a password${email ? ` for <b>${esc(email)}</b>` : ''}. You'll use it with your email to sign in to your dashboard.</p>
         <label class="field">New password<input type="password" name="password" autocomplete="new-password" minlength="8" required></label>
         <label class="field">Confirm password<input type="password" name="confirm" autocomplete="new-password" minlength="8" required></label>
         <p class="error" id="setpw-err" role="alert"></p>
@@ -184,6 +221,13 @@ function renderSetPassword(type, email) {
     if (pw.length < 8) { err.textContent = 'Use at least 8 characters.'; return; }
     if (pw !== form.confirm.value) { err.textContent = "The passwords don't match."; return; }
     const sb = await getSupabase();
+    if (hash) {
+      const { error: vErr } = await sb.auth.verifyOtp({ token_hash: hash, type });
+      if (vErr) {
+        err.textContent = `This link has expired or was already used. Ask NomNom for a new welcome email, or use "Email me a reset link" on the sign-in page. (${vErr.message})`;
+        return;
+      }
+    }
     const { error } = await sb.auth.updateUser({ password: pw });
     if (error) { err.textContent = error.message; return; }
     root.innerHTML = '<div class="boot"><span></span></div>';
@@ -233,7 +277,8 @@ async function signOut() {
 function renderStart() {
   root.innerHTML = `
     <div class="login"><div style="max-width:420px">
-      <h1>Set up your menu</h1>
+      ${isAdmin ? '<p style="margin-bottom:12px"><a class="btn ghost sm" href="./">← Partners</a></p>' : ''}
+      <h1>${partner ? `Set up ${esc(partner.name)}'s menu` : 'Set up your menu'}</h1>
       <p>Your menu is empty. Start from a sample menu (a full café menu with photos and videos you can edit), or from a blank menu.</p>
       <p style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
         <button class="btn" id="from-sample">Start from sample</button>
@@ -245,12 +290,12 @@ function renderStart() {
   $('#from-sample').onclick = async () => {
     // This restaurant's own starter file if we prepared one, otherwise the neutral demo café (data/demo.json).
     try { menu = await loadStatic(slug); } catch {
-      try { menu = { ...(await loadStatic('demo')), id: slug }; } catch { $('#start-err').textContent = "Couldn't load the sample menu. Check your connection and try again."; return; }
+      try { menu = { ...(await loadStatic('demo')), id: slug, ...(partner?.name ? { name: partner.name } : {}) }; } catch { $('#start-err').textContent = "Couldn't load the sample menu. Check your connection and try again."; return; }
     }
     normalize(); renderApp(); setDirty(true);
   };
   const blank = () => {
-    menu = { id: slug, name: slug, tagline: '', currency: 'INR', locale: 'en-IN', groups: [{ id: 'drinks', label: 'Drinks' }, { id: 'food', label: 'Food' }], sections: [], dishes: [] };
+    menu = { id: slug, name: partner?.name || slug, tagline: '', currency: 'INR', locale: 'en-IN', groups: [{ id: 'drinks', label: 'Drinks' }, { id: 'food', label: 'Food' }], sections: [], dishes: [] };
     normalize(); renderApp(); setDirty(true);
   };
   $('#blank').onclick = blank;
@@ -273,7 +318,8 @@ function renderApp() {
   document.title = `${menu.name} · Dashboard`;
   root.innerHTML = `
     <header class="top">
-      <span class="product">QR Menu <span>Dashboard</span></span>
+      ${isAdmin ? '<a class="btn ghost sm" href="./" id="to-partners">← Partners</a>' : ''}
+      <span class="product">NomNom <span>Dashboard</span></span>
       <span class="rest">${esc(menu.name)}</span>
       <span class="mode ${MODE === 'live' ? 'live' : ''}">${MODE === 'live' ? 'Live' : 'Demo · saved in this browser'}</span>
       <label class="order-switch" title="On: guests can order from their table. Off: guests can only view the menu.">
@@ -296,9 +342,11 @@ function renderApp() {
       ${[['orders', 'Orders'], ['items', 'Items'], ['categories', 'Categories'], ['branding', 'Branding'], ['insights', 'Insights'], ['tables', 'Tables & QR']]
         .map(([id, l]) => `<button class="tab" role="tab" data-view="${id}" aria-selected="${view === id}">${l}</button>`).join('')}
     </nav>
+    ${adminEditing ? `<div class="admin-strip" role="note">Super admin: you're editing <b>${esc(menu.name)}</b>'s menu. Changes go live for their guests when you publish.</div>` : ''}
     <main class="view" id="view"></main>`;
 
   $('#publish').onclick = publish;
+  $('#to-partners')?.addEventListener('click', (e) => { if (dirty && !confirm('You have unsaved changes. Leave without publishing?')) e.preventDefault(); else dirty = false; });
   $('#ordering-toggle').onchange = (e) => setOrdering(e.target.checked);
   $('.tabs').onclick = (e) => {
     const t = e.target.closest('[data-view]');
@@ -342,6 +390,18 @@ function renderView() {
    so other unpublished edits stay as drafts. Off = guests can only view the menu. */
 async function setOrdering(on) {
   const input = $('#ordering-toggle');
+  if (adminEditing) {
+    const ok = await confirmDialog({
+      title: `Turn table ordering ${on ? 'on' : 'off'} for ${menu.name}?`,
+      body: on ? `Guests at <b>${esc(menu.name)}</b> will be able to order from their table right away.` : `Guests at <b>${esc(menu.name)}</b> will only be able to view the menu.`,
+      confirm: on ? 'Turn on' : 'Turn off',
+    });
+    if (!ok) {
+      input.checked = !on;
+      if (view === 'orders') renderView(); // redraw the Orders tab's own switch
+      return;
+    }
+  }
   input.disabled = true;
   try {
     if (MODE === 'live') {
@@ -384,6 +444,14 @@ async function initOps() {
 
 async function publish() {
   const btn = $('#publish');
+  if (adminEditing) {
+    const ok = await confirmDialog({
+      title: `Publish ${menu.name}'s menu?`,
+      body: `Guests scanning <b>${esc(menu.name)}</b>'s QR codes will see these changes immediately.`,
+      confirm: 'Publish now',
+    });
+    if (!ok) return;
+  }
   btn.disabled = true;
   btn.textContent = 'Saving…';
   try {
@@ -391,6 +459,11 @@ async function publish() {
     else await saveLocal(slug, menu);
     setDirty(false);
     toast(MODE === 'live' ? 'Published — guests see the new menu now.' : 'Saved in this browser. Use Preview to see it.');
+    // First publish of a new partner's menu: offer to send the owner their welcome email.
+    if (adminEditing && partner && !partner.invited_at && partner.owner_email) {
+      partner = { ...partner, published: true };
+      if (await invite(partner, { afterPublish: true })) partner.invited_at = new Date().toISOString();
+    }
   } catch (err) {
     setDirty(true);
     toast(`Couldn't save: ${err.message || err}`, true);

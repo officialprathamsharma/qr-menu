@@ -26,14 +26,30 @@ Videos use the most bandwidth. Ask owners for 720p clips under about 15 MB.
    `https://menu.heynomnom.in/admin/`, so password-reset emails link back to it.
 5. Commit and push. GitHub Pages redeploys in about a minute.
 
-## Onboarding a restaurant
+## Onboarding a restaurant (super admin)
 
-1. **Authentication → Users → Add user**: enter the owner's email and a temporary password (or send an invite).
-2. Edit and run [`add-restaurant.sql`](add-restaurant.sql) with the restaurant's slug and the owner's email.
-3. The owner gets an invite email. Its link opens the dashboard, where they choose a password. They then click
-   **Start from sample** (their own `data/<slug>.json` if it exists, otherwise the Little Bean Café sample in `data/demo.json`), **Import a menu** (Excel, CSV or a Zomato link) or **Blank menu**,
-   then **Save & publish**.
-4. Each table's QR code: `https://<site>/?r=<slug>&t=<table number>`.
+One-time: run [`admin.sql`](admin.sql) (makes the login that owns the `demo` menu a super admin) and deploy
+[`functions/invite-owner`](functions/invite-owner/index.ts) as an Edge Function.
+
+1. Sign in at `https://menu.heynomnom.in/admin/`. Super admins land on **Partners**: every restaurant with its status,
+   dish/video/photo counts, owner contact and last sign-in, menu link and main QR code (PNG poster or SVG).
+2. **Add restaurant**: name, link name (the `?r=` slug), owner's email, phone and city.
+3. Build the menu: **Import a menu** (Excel, CSV or a Zomato link), **Start from sample** (`data/<slug>.json` if it
+   exists, otherwise `data/demo.json`) or **Blank menu**, then **Save & publish** (you're asked to confirm).
+4. After the first publish the dashboard offers to send the owner's **welcome email** (also on each partner card).
+   It's sent from info@heynomnom.in and links to `/admin/?token_hash=…`; the one-time token is only used when the
+   owner submits their new password, so email link scanners can't use it up.
+5. Main QR: `https://menu.heynomnom.in/?r=<slug>`. Table QR cards: open the menu → **Tables & QR**
+   (`?r=<slug>&t=<table number>`).
+
+Editing a partner's menu always asks first, shows a banner while you edit, and asks again before publishing or
+switching table ordering. Owners still only see their own restaurant.
+
+### Email (Authentication → Emails)
+- **SMTP Settings**: host `smtp.zoho.in`, port 465, username `pratham@heynomnom.in` (a Zoho app password),
+  sender `info@heynomnom.in`, name NomNom.
+- **Templates → Invite user / Reset password**: NomNom-branded; buttons link to
+  `https://menu.heynomnom.in/admin/?token_hash={{ .TokenHash }}&type=invite` (or `type=recovery`).
 
 ## Demo account
 

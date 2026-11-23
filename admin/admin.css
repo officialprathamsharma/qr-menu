@@ -364,3 +364,52 @@ main.view { max-width: 980px; margin: 0 auto; padding: var(--space-5) var(--spac
 .order-switch input:disabled + .os-track { opacity: 0.5; }
 .os-label b { color: var(--text); }
 .link-err.bad { color: var(--danger); }
+
+/* ---------- Super admin: Partners panel ---------- */
+main.view.wide { max-width: 1120px; }
+.admin-strip { padding: 10px var(--space-5); background: color-mix(in srgb, var(--warn) 14%, var(--bg)); border-bottom: 1px solid color-mix(in srgb, var(--warn) 40%, transparent); color: var(--text); font-size: var(--fs-sm); }
+.p-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+.p-kpis .kpi { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
+.p-kpis .kpi span { color: var(--muted); font-size: var(--fs-xs); }
+.p-kpis .kpi b { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+.p-tools { margin: 18px 0 12px; }
+.p-list { display: flex; flex-direction: column; gap: 12px; }
+.p-card { display: grid; grid-template-columns: 104px 1fr auto; gap: 16px; align-items: center; padding: 14px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow-1); }
+.p-qr { width: 104px; height: 104px; border-radius: 12px; overflow: hidden; background: #fff; display: grid; place-items: center; }
+.p-qr svg { width: 100%; height: 100%; }
+.p-main { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.p-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.p-head h3 { font-size: 17px; font-weight: 650; letter-spacing: -0.01em; }
+.p-link { display: flex; gap: 10px; align-items: baseline; min-width: 0; font-size: var(--fs-sm); }
+.p-link a { color: var(--primary); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.p-link a:hover { text-decoration: underline; }
+.link-btn { color: var(--muted); font-size: var(--fs-xs); text-decoration: underline; padding: 6px 2px; }
+.p-meta { color: var(--muted); font-size: var(--fs-xs); }
+.p-actions { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+.pill { font-size: var(--fs-2xs); padding: 3px 9px; border-radius: var(--radius-pill); border: 1px solid var(--line); color: var(--muted); white-space: nowrap; }
+.pill.live { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 45%, transparent); }
+.pill.invited { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 45%, transparent); }
+.pill.draft { color: var(--faint); }
+@media (max-width: 760px) {
+  .p-kpis { grid-template-columns: 1fr 1fr; }
+  .p-card { grid-template-columns: 76px 1fr; }
+  .p-qr { width: 76px; height: 76px; }
+  .p-actions { grid-column: 1 / -1; flex-direction: row; flex-wrap: wrap; }
+  .p-actions .btn { flex: 1 1 auto; }
+}
+
+/* ---------- Dialogs ---------- */
+.dlg { margin: auto; width: min(460px, calc(100% - 32px)); max-height: calc(100dvh - 32px); padding: 0; border: 1px solid var(--line-strong); border-radius: var(--radius-lg);
+  background: linear-gradient(180deg, var(--surface-2), var(--bg-elevated)); color: var(--text); box-shadow: var(--shadow-2); animation: dlg-in var(--dur-3) var(--ease-out); }
+.dlg.wide { width: min(560px, calc(100% - 32px)); }
+.dlg::backdrop { background: var(--scrim); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+@keyframes dlg-in { from { transform: translateY(10px) scale(0.98); opacity: 0; } }
+.dlg-form { display: flex; flex-direction: column; gap: 14px; padding: 20px; max-height: calc(100dvh - 34px); }
+.dlg-body { overflow-y: auto; overscroll-behavior: contain; margin: 0 -4px; padding: 0 4px; }
+.dlg-title { font-size: 18px; font-weight: 650; letter-spacing: -0.01em; }
+.dlg-body { color: var(--muted); font-size: var(--fs-md); line-height: 1.55; display: flex; flex-direction: column; gap: 10px; }
+.dlg-body b { color: var(--text); }
+.dlg-grid { display: flex; flex-direction: column; gap: 12px; }
+.dlg-foot { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.qr-big { display: grid; place-items: center; }
+.qr-big svg { width: 260px; height: 260px; border-radius: 12px; }
