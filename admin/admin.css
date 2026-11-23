@@ -413,3 +413,18 @@ main.view.wide { max-width: 1120px; }
 .dlg-foot { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
 .qr-big { display: grid; place-items: center; }
 .qr-big svg { width: 260px; height: 260px; border-radius: 12px; }
+
+/* Featured lists editor */
+.rail-edit { padding: 6px 0 14px; border-top: 1px solid var(--line); }
+.rail-edit:first-of-type { border-top: 0; }
+.rail-edit .cat-row { border-top: 0; }
+.rail-items { list-style: none; margin: 0 0 10px; padding: 0; counter-reset: ri; }
+.rail-items li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 4px 0 4px 4px; border-bottom: 1px dashed var(--line); counter-increment: ri; }
+.rail-items li::before { content: counter(ri); color: var(--muted); font-size: var(--fs-xs); width: 18px; flex: none; }
+.rail-items .ri-name { flex: 1; font-size: 13.5px; }
+.ri-tag { font-size: 11px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 0 6px; margin-left: 4px; }
+.rail-items .icon-btn { width: 32px; height: 32px; }
+.pick-group { margin-bottom: 8px; }
+.pick-head { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 8px 0 2px; }
+.pick-item { display: flex; }
+.pick-item[hidden], .pick-group[hidden] { display: none; }

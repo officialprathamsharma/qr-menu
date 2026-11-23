@@ -12,7 +12,7 @@ import { startOrders, renderOrders, renderInsights, renderTables } from './ops.j
 import { makePhotoSet, compressVideo, canCompressVideo } from './media.js';
 import { CONFIG } from '../assets/js/config.js';
 import { renderPartners, partnerFor, invite, setPartnerCtx } from './partners.js';
-import { confirmDialog } from './dialog.js';
+import { confirmDialog, openDialog } from './dialog.js';
 
 const root = document.getElementById('admin');
 const $ = (s, el = document) => el.querySelector(s);
@@ -999,7 +999,8 @@ function openEditor(dish) {
       coffee: f.has('coffee'), spice: Number(f.get('spice') || 0),
       temp: f.get('temp') || undefined, course: f.get('course'),
       allergens: String(f.get('allergens') || '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean),
-      badges: f.getAll('badge'), tags: f.getAll('tag'),
+      badges: f.getAll('badge'),
+      tags: [...(d.tags || []).filter((t) => !rails().some((r) => r.match === t)), ...f.getAll('tag')],
       story: String(f.get('story') || '').trim() || undefined,
       chefNote: String(f.get('chefNote') || '').trim() || undefined,
     });
@@ -1087,15 +1088,42 @@ function renderCategories() {
     </div>
     <div class="panel">
       <h3>Featured lists</h3>
-      <p>The large video rails at the top of the menu. Choose which items appear from each item’s “Highlights”. Use {name} for your restaurant name.</p>
-      ${rails().map((r) => `
-        <div class="cat-row" data-sec="${esc(r.id)}">
-          <label class="field">Title<input value="${esc(r.label)}" data-k="label"></label>
-          <label class="field">Subtitle<input value="${esc(r.eyebrow || '')}" data-k="eyebrow"></label>
-          <span></span>
-          <span class="count">${menu.dishes.filter((d) => d.tags?.includes(r.match)).length} items</span>
-          <span></span>
-        </div>`).join('')}
+      <p>The large swipeable rails at the top of the menu, e.g. “Most loved” or “Chef’s picks”. Items with a video look best. Use {name} for your restaurant name.</p>
+      ${rails().length ? '' : '<p class="hint">No featured lists yet. Add one below.</p>'}
+      ${rails().map((r, i, all) => {
+        const items = railItems(r);
+        return `
+        <div class="rail-edit" data-sec="${esc(r.id)}">
+          <div class="cat-row">
+            <label class="field">Title<input value="${esc(r.label)}" data-k="label"></label>
+            <label class="field">Subtitle<input value="${esc(r.eyebrow || '')}" data-k="eyebrow" placeholder="e.g. Guest favourites"></label>
+            <span></span>
+            <span class="count">${items.length} item${items.length === 1 ? '' : 's'}</span>
+            <span class="reorder">
+              <button class="icon-btn" data-smove="-1" aria-label="Move ${esc(r.label)} up" ${i === 0 ? 'disabled' : ''}>${I.up}</button>
+              <button class="icon-btn" data-smove="1" aria-label="Move ${esc(r.label)} down" ${i === all.length - 1 ? 'disabled' : ''}>${I.down}</button>
+              <button class="icon-btn" data-rdel aria-label="Delete ${esc(r.label)}">${I.close}</button>
+            </span>
+          </div>
+          <ol class="rail-items">
+            ${items.map((d, j) => `
+              <li data-dish="${esc(d.id)}">
+                <span class="ri-name">${esc(d.name)}${d.video ? ' <small class="ri-tag">video</small>' : ''}</span>
+                <span class="reorder">
+                  <button class="icon-btn sm" data-imove="-1" aria-label="Move ${esc(d.name)} earlier" ${j === 0 ? 'disabled' : ''}>${I.up}</button>
+                  <button class="icon-btn sm" data-imove="1" aria-label="Move ${esc(d.name)} later" ${j === items.length - 1 ? 'disabled' : ''}>${I.down}</button>
+                  <button class="icon-btn sm" data-iremove aria-label="Remove ${esc(d.name)} from this list">${I.close}</button>
+                </span>
+              </li>`).join('')}
+          </ol>
+          <button class="btn ghost sm" data-rpick>${I.plus}${items.length ? 'Add or remove items' : 'Choose items'}</button>
+        </div>`;
+      }).join('')}
+      <form id="add-rail" style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+        <input class="input" name="label" placeholder="New list title, e.g. Chef’s picks" required style="flex:1;min-width:180px">
+        <input class="input" name="eyebrow" placeholder="Subtitle (optional)" style="flex:1;min-width:160px">
+        <button class="btn" type="submit">${I.plus}Add list</button>
+      </form>
     </div>`;
 
   v.oninput = (e) => {
@@ -1106,9 +1134,55 @@ function renderCategories() {
     sec[k] = e.target.value;
     setDirty();
   };
-  v.onclick = (e) => {
+  v.onclick = async (e) => {
     const row = e.target.closest('[data-sec]');
     const mv = e.target.closest('[data-smove]');
+    const sec = row && menu.sections.find((s) => s.id === row.dataset.sec);
+    if (sec?.type === 'tag') {
+      if (mv) {
+        const list = rails();
+        const other = list[list.indexOf(sec) + Number(mv.dataset.smove)];
+        if (!other) return;
+        const a = menu.sections.indexOf(sec);
+        const b = menu.sections.indexOf(other);
+        [menu.sections[a], menu.sections[b]] = [menu.sections[b], menu.sections[a]];
+        setDirty();
+        return renderCategories();
+      }
+      const li = e.target.closest('[data-dish]');
+      if (li && e.target.closest('[data-imove]')) {
+        const ids = railItems(sec).map((d) => d.id);
+        const i = ids.indexOf(li.dataset.dish);
+        const j = i + Number(e.target.closest('[data-imove]').dataset.imove);
+        if (j < 0 || j >= ids.length) return;
+        [ids[i], ids[j]] = [ids[j], ids[i]];
+        sec.order = ids;
+        setDirty();
+        return renderCategories();
+      }
+      if (li && e.target.closest('[data-iremove]')) {
+        const d = menu.dishes.find((x) => x.id === li.dataset.dish);
+        if (d) d.tags = d.tags.filter((t) => t !== sec.match);
+        sec.order = (sec.order || []).filter((id) => id !== li.dataset.dish);
+        setDirty();
+        return renderCategories();
+      }
+      if (e.target.closest('[data-rpick]')) return pickRailItems(sec);
+      if (e.target.closest('[data-rdel]')) {
+        const n = railItems(sec).length;
+        const ok = await confirmDialog({
+          title: `Delete “${sec.label.replaceAll('{name}', menu.name)}”?`,
+          body: `The list disappears from the menu${n ? ` and its ${n} item${n === 1 ? '' : 's'} stay on the menu as usual` : ''}. Takes effect when you Save & publish.`,
+          confirm: 'Delete list', danger: true,
+        });
+        if (!ok) return;
+        if (sec.match !== 'bestseller') for (const d of menu.dishes) d.tags = (d.tags || []).filter((t) => t !== sec.match);
+        menu.sections = menu.sections.filter((s) => s !== sec);
+        setDirty();
+        return renderCategories();
+      }
+      return;
+    }
     if (row && mv) {
       const list = categories();
       const c = list.find((s) => s.id === row.dataset.sec);
@@ -1138,6 +1212,71 @@ function renderCategories() {
     renderCategories();
     toast(`Added “${label}”.`);
   };
+  $('#add-rail').onsubmit = (e) => {
+    e.preventDefault();
+    const label = e.target.elements.label.value.trim();
+    if (!label) return;
+    const base = slugify(label) || 'featured';
+    let id = base;
+    let n = 2;
+    while (id === 'bestseller' || menu.sections.some((s) => s.id === id || s.match === id)) id = `${base}-${n++}`;
+    const sec = { id, label, type: 'tag', match: id, eyebrow: e.target.elements.eyebrow.value.trim(), order: [] };
+    // New lists go after the existing featured lists.
+    const last = rails().at(-1);
+    menu.sections.splice(last ? menu.sections.indexOf(last) + 1 : 0, 0, sec);
+    setDirty();
+    renderCategories();
+    pickRailItems(sec);
+  };
+}
+
+/* Items in a featured list, in the order guests see them. */
+function railItems(r) {
+  const list = menu.dishes.filter((d) => d.tags?.includes(r.match));
+  const rank = (d) => { const i = (r.order || []).indexOf(d.id); return i < 0 ? 1e9 : i; };
+  return list.sort((a, b) => rank(a) - rank(b));
+}
+
+/* Tick which items belong in a featured list. */
+async function pickRailItems(sec) {
+  const title = sec.label.replaceAll('{name}', menu.name);
+  const groups = categories().map((c) => [c.label, menu.dishes.filter((d) => d.category === c.match)])
+    .concat([['Other', menu.dishes.filter((d) => !categories().some((c) => c.match === d.category))]])
+    .filter(([, list]) => list.length);
+  let picks = [];
+  const v = await openDialog({
+    title: `Items in “${title}”`,
+    wide: true,
+    body: `
+      <input class="input" type="search" placeholder="Search items" data-pick-search style="width:100%;margin-bottom:10px">
+      ${menu.dishes.length ? groups.map(([label, list]) => `
+        <div class="pick-group"><p class="pick-head">${esc(label)}</p>
+          ${list.map((d) => `<label class="check pick-item" data-name="${esc(d.name.toLowerCase())}"><input type="checkbox" value="${esc(d.id)}" ${d.tags?.includes(sec.match) ? 'checked' : ''}>${esc(d.name)}${d.video ? ' <small class="ri-tag">video</small>' : ''}</label>`).join('')}
+        </div>`).join('') : '<p class="hint">Add some items to your menu first.</p>'}`,
+    buttons: [{ label: 'Cancel', value: 'no', kind: 'ghost' }, { label: 'Done', value: 'yes', submit: true }],
+    onOpen: (d) => {
+      d.querySelector('[data-pick-search]').oninput = (e) => {
+        const q = e.target.value.trim().toLowerCase();
+        for (const el of d.querySelectorAll('.pick-item')) el.hidden = Boolean(q) && !el.dataset.name.includes(q);
+        for (const g of d.querySelectorAll('.pick-group')) g.hidden = ![...g.querySelectorAll('.pick-item')].some((el) => !el.hidden);
+      };
+      d.addEventListener('submit', () => {
+        picks = [...d.querySelectorAll('.pick-item input:checked')].map((i) => i.value);
+      });
+    },
+  });
+  if (v !== 'yes') return;
+  const picked = new Set(picks);
+  const before = railItems(sec).map((d) => d.id);
+  for (const d of menu.dishes) {
+    const has = d.tags?.includes(sec.match);
+    if (picked.has(d.id) && !has) d.tags = [...(d.tags || []), sec.match];
+    if (!picked.has(d.id) && has) d.tags = d.tags.filter((t) => t !== sec.match);
+  }
+  sec.order = before.filter((id) => picked.has(id)).concat([...picked].filter((id) => !before.includes(id)));
+  setDirty();
+  renderCategories();
+  toast(`“${title}” now has ${picked.size} item${picked.size === 1 ? '' : 's'}.`);
 }
 
 /* ==========================================================
