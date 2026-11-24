@@ -4,13 +4,15 @@
 //   POST { image }  →  the image's bytes, so the dashboard can copy an item photo into the restaurant's own storage
 //                      (Zomato's image servers don't allow browsers to download them directly). Zomato images only.
 // - Zomato (pages with online ordering): full item list from the page's embedded data.
+// - AirMenus (airmenus.in/<restaurant>/...): full item list with photos, veg/egg, tags and stock, from its public
+//   menu API (the same calls its own menu page makes).
 // - EazyDiner / Swiggy Dineout: these only publish PHOTOS of the printed menu, so we return those photos
 //   (plus any schema.org menu items the page happens to include).
 // Only these sites are allowed, so the function can't be used as a general web proxy.
 // Deploy: Supabase dashboard → Edge Functions → Deploy a new function → Via editor, name "import-menu", paste this file.
 
-const ALLOWED = [/(^|\.)zomato\.com$/, /(^|\.)eazydiner\.com$/, /(^|\.)swiggy\.com$/, /(^|\.)dineout\.co\.in$/];
-const IMAGE_HOSTS = [/(^|\.)zmtcdn\.com$/];
+const ALLOWED = [/(^|\.)zomato\.com$/, /(^|\.)airmenus\.in$/, /(^|\.)eazydiner\.com$/, /(^|\.)swiggy\.com$/, /(^|\.)dineout\.co\.in$/];
+const IMAGE_HOSTS = [/(^|\.)zmtcdn\.com$/, /^airmenusimages\.[a-z0-9]+\.cdn\.digitaloceanspaces\.com$/];
 const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 const cors = {
@@ -19,7 +21,7 @@ const cors = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
 
-type Item = { name: string; category: string; price: number | null; description: string; veg: boolean | null; egg: boolean; image?: string };
+type Item = { name: string; category: string; price: number | null; description: string; veg: boolean | null; egg: boolean; image?: string; badges?: string[]; available?: boolean };
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } });
@@ -39,7 +41,15 @@ Deno.serve(async (req) => {
     return json({ error: 'Paste the full link, starting with https://' }, 400);
   }
   if (url.protocol !== 'https:' || !ALLOWED.some((re) => re.test(url.hostname))) {
-    return json({ error: 'Only Zomato, EazyDiner and Swiggy Dineout links are supported.' }, 400);
+    return json({ error: 'Only Zomato, AirMenus, EazyDiner and Swiggy Dineout links are supported.' }, 400);
+  }
+
+  if (/airmenus\.in$/.test(url.hostname)) {
+    try {
+      return json(await fetchAirMenus(url));
+    } catch (e) {
+      return json({ error: `Couldn't read the AirMenus menu (${(e as Error).message}).` }, 502);
+    }
   }
 
   // Zomato's menu lives on the /order page.
@@ -72,12 +82,12 @@ async function proxyImage(raw: string) {
   let url: URL;
   try { url = new URL(raw.trim()); } catch { return json({ error: 'Bad image link' }, 400); }
   if (url.protocol !== 'https:' || !IMAGE_HOSTS.some((re) => re.test(url.hostname))) {
-    return json({ error: 'Only Zomato item photos can be copied.' }, 400);
+    return json({ error: 'Only Zomato and AirMenus item photos can be copied.' }, 400);
   }
   try {
     const res = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'image/avif,image/webp,image/*' }, redirect: 'follow' });
     const type = res.headers.get('content-type') || '';
-    if (!IMAGE_HOSTS.some((re) => re.test(new URL(res.url).hostname))) return json({ error: 'Image moved off Zomato.' }, 502);
+    if (!IMAGE_HOSTS.some((re) => re.test(new URL(res.url).hostname))) return json({ error: 'Image moved to another site.' }, 502);
     if (!res.ok || !type.startsWith('image/')) return json({ error: `Image not available (${res.status}).` }, 502);
     const bytes = new Uint8Array(await res.arrayBuffer());
     if (bytes.byteLength > MAX_IMAGE_BYTES) return json({ error: 'Image is too large.' }, 413);
@@ -85,6 +95,68 @@ async function proxyImage(raw: string) {
   } catch (e) {
     return json({ error: `Couldn't download the image (${(e as Error).message}).` }, 502);
   }
+}
+
+// AirMenus: restaurant → outlet → menu types (dine-in, takeaway, delivery) → top sections → categories → items.
+async function fetchAirMenus(url: URL) {
+  const [rest, outletName] = url.pathname.split('/').filter(Boolean);
+  if (!rest) throw new Error('use the restaurant\'s menu link, e.g. airmenus.in/<restaurant>/order');
+  const api = 'https://apis.airmenus.in/api';
+  const get = async (path: string) => {
+    const res = await fetch(`${api}${path}`, { headers: { 'User-Agent': UA, Accept: 'application/json' } });
+    if (!res.ok) throw new Error(`AirMenus answered ${res.status}`);
+    return res.json();
+  };
+  const info = await get(`/restaurant/details/?rest_short_name=${encodeURIComponent(rest)}`);
+  const outlets: any[] = info?.outlets || [];
+  const outlet = outlets.find((o) => o.short_name === outletName) || outlets[0];
+  if (!outlet) throw new Error('restaurant not found');
+  const out = { source: 'airmenus.in', name: String(info.name || outlet.name || ''), items: [] as Item[], menuImages: [] as string[] };
+  const seen = new Set<string>();
+  const pref = url.pathname.toLowerCase().includes('take') ? ['takeaway', 'dinein', 'delivery'] : ['dinein', 'takeaway', 'delivery'];
+  for (const type of pref) {
+    const tops: any[] = await get(`/menu/details/?outlet_id=${outlet.id}&level=1&menu_type=${type}&parent_id=-1&only_active=YES`).catch(() => []);
+    if (!Array.isArray(tops) || !tops.length) continue;
+    for (const top of tops) {
+      const cats: any[] = await get(`/menu/details/full/?outlet_id=${outlet.id}&super_category=${encodeURIComponent(top.item_name)}&menu_type=${type}&super_category_id=${top.id}&only_active=YES`);
+      const walk = (c: any, prefix: string) => {
+        const category = [tops.length > 1 ? top.item_name : '', prefix, c.item_name].filter(Boolean).join(' · ');
+        for (const it of c.items || []) addAirItem(it, category, out.items, seen);
+        for (const sub of c.subCategories || []) walk(sub, c.item_name);
+      };
+      for (const c of Array.isArray(cats) ? cats : []) walk(c, '');
+    }
+    if (out.items.length) break; // one menu type is enough; the others repeat the same dishes
+  }
+  return out;
+}
+
+function addAirItem(it: any, category: string, items: Item[], seen: Set<string>) {
+  const name = String(it?.item_name || '').trim();
+  if (!name || it.active === false) return;
+  // Some places list a dish in two categories; keep the first.
+  const opts = (it.variations || []).flatMap((v: any) => v.childrens || []).filter((o: any) => o.active !== false && o.variation_name);
+  const optPrices = opts.map((o: any) => Number(o.variation_price)).filter((n: number) => n > 0);
+  const sale = it.sale_price?.use && Number(it.sale_price.price) > 0 ? Number(it.sale_price.price) : 0;
+  const price = sale || Number(it.price) || (optPrices.length ? Math.min(...optPrices) : 0) || null;
+  const key = `${name.toLowerCase()}|${price}`;
+  if (seen.has(key)) return;
+  seen.add(key);
+  let description = String(it.description || '').replace(/\s*\n\s*/g, ' · ').trim();
+  if (opts.length) description = [description, opts.map((o: any) => `${o.variation_name}${Number(o.variation_price) > 0 ? ` ₹${Number(o.variation_price)}` : ''}`).join(', ')].filter(Boolean).join(' · ');
+  const type = String(it.item_type || '').toUpperCase();
+  const tag = String(it.special_tags || '').trim();
+  items.push({
+    name,
+    category: category || 'Menu',
+    price,
+    description,
+    veg: /^(VEGETARIAN|VEGAN)$/.test(type) ? true : /EGG|NON/.test(type) ? false : null,
+    egg: /EGG/.test(type),
+    image: it.img || it.images?.[0]?.url || undefined,
+    badges: tag ? [tag.toLowerCase().replace(/!+$/, '').replace(/(^|[\s'’-])\p{L}/gu, (m) => m.toUpperCase()).replace(/'S\b/g, "'s")] : [],
+    available: it.in_stock !== false,
+  });
 }
 
 function parseZomato(html: string, out: { name: string; items: Item[] }) {

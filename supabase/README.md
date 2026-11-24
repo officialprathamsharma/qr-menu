@@ -44,7 +44,8 @@ One-time: run [`admin.sql`](admin.sql) (makes the login that owns the `demo` men
 
 **Pause menu** (on each partner card, e.g. when a restaurant hasn't paid): after you confirm, the menu link and every
 QR code (main and table cards) show "Menu unavailable" and table ordering stops. Nothing is deleted. The owner can still
-sign in and sees a "paused" banner. **Resume menu** turns everything back on. Needs
+sign in and sees a "paused" banner. Paused restaurants are listed in their own **Paused** section below the active
+ones. **Resume menu** turns everything back on. Needs
 [`pause-and-cleanup.sql`](pause-and-cleanup.sql) (run once).
 
 Editing a partner's menu always asks first, shows a banner while you edit, and asks again before publishing or
@@ -65,17 +66,24 @@ the dashboard to prospects. Edits there never affect a real restaurant's menu.
 
 `functions/import-menu/index.ts` powers the dashboard's **Import → From a listing link**. It is deployed as the
 `import-menu` Edge Function (Supabase dashboard → Edge Functions → Deploy a new function → Via editor, then paste the
-file). It only fetches Zomato, EazyDiner and Swiggy Dineout pages.
+file). It only fetches Zomato, AirMenus, EazyDiner and Swiggy Dineout pages.
 
 - **Zomato**: the full item list (name, category, price, description, veg/non-veg) and item photos, for restaurants
   with online ordering. When the import is applied, each photo is downloaded through the same function (its
   `{ image }` mode, Zomato image servers only), resized in the browser like any upload (≤1280 px WebP plus a small card
-  copy) and saved in the restaurant's own `photos/` folder, so the menu never loads images from Zomato. Items that
+  copy) and saved in the restaurant's own `photos/` folder, so the menu never loads images from Zomato or AirMenus. Items that
   already have a photo keep it, and photos that can't be copied are left empty to add by hand.
+- **AirMenus** (any `airmenus.in/<restaurant>/…` link): every item with its category, price (sale price when one is
+  on; for size options the lowest, with the options added to the description), description, veg/egg mark, photo,
+  tag (e.g. "Must try" becomes a badge) and stock (out-of-stock items come in as unavailable), from AirMenus's public
+  menu API. A dish listed in two categories is imported once. Photos are copied like Zomato's.
 - **EazyDiner / Dineout**: these sites only publish photos of the printed menu, so the dashboard shows those photos for
   the owner to copy into the spreadsheet template.
 - Only import a restaurant's listing with that restaurant's permission, and expect these sites to change their pages
   or block requests now and then; the spreadsheet import always works.
+
+Spreadsheet and link imports: an item without a veg/non-veg mark is imported as veg, and no prep time is guessed
+(guests only see a prep time the restaurant gave).
 
 ## How data flows
 

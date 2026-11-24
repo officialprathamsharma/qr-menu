@@ -73,10 +73,10 @@ async function load() {
   const active = list.filter((p) => p.owner_last_sign_in).length;
   view.innerHTML = `
     <div class="p-kpis">
-      <div class="kpi"><span>Restaurants</span><b>${list.length}</b></div>
+      <div class="kpi"><span>Active restaurants</span><b>${list.length - paused}</b></div>
       <div class="kpi"><span>Menus live</span><b>${live}</b></div>
       <div class="kpi"><span>Owners signed in</span><b>${active}</b></div>
-      <div class="kpi"><span>${paused ? 'Paused' : 'Dishes on menus'}</span><b>${paused || list.reduce((n, p) => n + p.items, 0)}</b></div>
+      <div class="kpi"><span>Paused</span><b>${paused}</b></div>
     </div>
     <div class="p-tools"><input class="input" id="p-search" type="search" placeholder="Search by name, link, owner or city" aria-label="Search partners"></div>
     <div class="p-list" id="p-list"></div>`;
@@ -89,7 +89,17 @@ function drawList(q) {
   const needle = q.trim().toLowerCase();
   const rows = list.filter((p) => !needle || [p.name, p.slug, p.owner_email, p.owner_phone, p.city].some((v) => String(v || '').toLowerCase().includes(needle)));
   if (!rows.length) { el.innerHTML = `<p class="empty-note">${list.length ? 'No match.' : 'No restaurants yet. Use “Add restaurant”.'}</p>`; return; }
-  el.innerHTML = rows.map((p) => {
+  // Paused restaurants live in their own section below the active ones.
+  const activeRows = rows.filter((p) => !p.suspended);
+  const pausedRows = rows.filter((p) => p.suspended);
+  el.innerHTML = `
+    ${pausedRows.length ? `<h2 class="p-sec first">Active <small>${activeRows.length}</small></h2>` : ''}
+    ${activeRows.length ? activeRows.map(card).join('') : '<p class="empty-note">No active restaurants match.</p>'}
+    ${pausedRows.length ? `<h2 class="p-sec">Paused <small>${pausedRows.length} · menu link and QR codes are off</small></h2>${pausedRows.map(card).join('')}` : ''}`;
+  el.onclick = onListClick;
+}
+
+function card(p) {
     const [tone, label] = status(p);
     const url = menuUrl(p.slug);
     let qr = '';
@@ -113,8 +123,9 @@ function drawList(q) {
         <button class="btn ${p.suspended ? 'sm' : 'danger sm'}" data-act="pause">${p.suspended ? 'Resume menu' : 'Pause menu'}</button>
       </div>
     </article>`;
-  }).join('');
-  el.onclick = async (e) => {
+}
+
+async function onListClick(e) {
     const b = e.target.closest('[data-act]');
     if (!b) return;
     const p = list.find((x) => x.slug === b.closest('[data-slug]').dataset.slug);
@@ -125,7 +136,6 @@ function drawList(q) {
     if (act === 'invite') invite(p);
     if (act === 'details') details(p);
     if (act === 'pause') setPaused(p, !p.suspended);
-  };
 }
 
 /* ---------- Pause / resume (e.g. unpaid): the link and every QR code stop working ---------- */

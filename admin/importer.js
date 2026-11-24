@@ -1,5 +1,5 @@
 /* ==========================================================
-   Menu import: CSV / Excel files and listing links (Zomato, EazyDiner, Swiggy Dineout).
+   Menu import: CSV / Excel files and listing links (Zomato, AirMenus, EazyDiner, Swiggy Dineout).
    - readSpreadsheet(file) → rows, using the first sheet of an Excel file.
    - rowsToItems(rows) → { items, unknownColumns, missing }. Column names are matched loosely
      ("Item Name", "Dish", "Rate (₹)", "Veg/Non-Veg"…), so most existing menu sheets work as they are.
@@ -196,7 +196,7 @@ export function applyImport(menu, items, { replace = false, slugify }) {
       if (it.prepTime > 0) existing.prepTime = it.prepTime;
       if (it.image && !existing.image) existing.image = it.image; // never replace a photo the owner already has
       if (it.video) existing.video = it.video;
-      existing.available = it.available;
+      if (it.available != null) existing.available = it.available;
       stats.updated++;
       continue;
     }
@@ -215,7 +215,7 @@ export function applyImport(menu, items, { replace = false, slugify }) {
       description: it.description || '',
       tags: [],
       badges: (it.badges || []).map(badgeKey),
-      diet: { veg: it.veg ?? (isDrink ? true : null), egg: Boolean(it.egg), vegan: Boolean(it.vegan), gf: Boolean(it.gf) },
+      diet: { veg: it.veg ?? true, egg: Boolean(it.egg), vegan: Boolean(it.vegan), gf: Boolean(it.gf) },
       spice: it.spice || 0,
       ...(isDrink ? { temp: it.temp || (COLD_RE.test(text) ? 'cold' : 'hot') } : it.temp ? { temp: it.temp } : {}),
       coffee: COFFEE_RE.test(text),

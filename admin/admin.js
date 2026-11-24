@@ -294,7 +294,7 @@ function renderStart() {
       <p>Your menu is empty. Start from a sample menu (a full café menu with photos and videos you can edit), or from a blank menu.</p>
       <p style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
         <button class="btn" id="from-sample">Start from sample</button>
-        <button class="btn ghost" id="import-start">Import a menu (Excel, CSV or Zomato link)</button>
+        <button class="btn ghost" id="import-start">Import a menu (Excel, CSV, Zomato or AirMenus link)</button>
         <button class="btn ghost" id="blank">Blank menu</button>
       </p>
       <p class="error" id="start-err"></p>
@@ -516,7 +516,7 @@ async function importJson(e) {
 }
 
 /* ==========================================================
-   Import: CSV / Excel file, or a Zomato / EazyDiner / Dineout link
+   Import: CSV / Excel file, or a Zomato / AirMenus / EazyDiner / Dineout link
    ========================================================== */
 function openImport() {
   const back = document.createElement('div');
@@ -544,10 +544,11 @@ function openImport() {
       </section>
       <section class="imp-step">
         <h3>From a listing link</h3>
-        <p class="hint">Paste the restaurant's Zomato, EazyDiner or Swiggy Dineout page. Zomato gives the full item list
-          when the restaurant takes online orders. EazyDiner and Dineout only show photos of the printed menu.</p>
+        <p class="hint">Paste the restaurant's Zomato, AirMenus, EazyDiner or Swiggy Dineout page. AirMenus and Zomato give
+          the full item list with photos (Zomato only when the restaurant takes online orders). EazyDiner and Dineout only
+          show photos of the printed menu.</p>
         <form class="imp-actions" id="imp-link-form">
-          <input class="input" type="url" id="imp-url" placeholder="https://www.zomato.com/…" required>
+          <input class="input" type="url" id="imp-url" placeholder="https://www.zomato.com/… or https://airmenus.in/…" required>
           <button class="btn" type="submit" id="imp-go">Fetch menu</button>
         </form>
       </section>
@@ -585,9 +586,11 @@ function openImport() {
         <div class="imp-summary">
           <p><b>${items.length}</b> items in <b>${cats.length}</b> categories${newCats.length ? ` · ${newCats.length} new: ${esc(newCats.slice(0, 6).join(', '))}${newCats.length > 6 ? '…' : ''}` : ''}</p>
           ${noPrice ? `<p class="warn">${noPrice} without a price (they'll show ₹0 until you edit them).</p>` : ''}
-          ${noDiet ? `<p class="hint">${noDiet} without a veg/non-veg mark. Drinks are marked veg; set food items in the editor.</p>` : ''}
+          ${noDiet ? `<p class="hint">${noDiet} without a veg/non-veg mark; they'll be marked veg. Change any non-veg ones in the editor.</p>` : ''}
           ${note ? `<p class="hint">${note}</p>` : ''}
           ${items.some((i) => i.image) ? `<p class="hint"><b>${items.filter((i) => i.image).length}</b> item photos will be copied into your own storage (optimised). Items that already have a photo keep it.</p>` : `<p class="hint">Photos and videos aren't included; add them per item after importing.</p>`}
+          ${(() => { const b = [...new Set(items.flatMap((i) => i.badges || []))]; return b.length ? `<p class="hint">Badges: ${esc(b.join(', '))}. Rename or delete them later under Categories → Badges.</p>` : ''; })()}
+          ${items.some((i) => i.available === false) ? `<p class="hint">${items.filter((i) => i.available === false).length} marked out of stock there; they'll be imported as unavailable.</p>` : ''}
         </div>
         <div class="imp-table-wrap"><table class="imp-table">
           <thead><tr><th>Item</th><th>Category</th><th>Price</th><th>Diet</th></tr></thead>
@@ -637,8 +640,8 @@ function openImport() {
       });
       const out = await res.json().catch(() => ({ error: `Unexpected reply (${res.status}).` }));
       if (out.error) return fail(out.error);
-      if (!out.items.length && !out.menuImages.length) return fail("Couldn't find a menu on that page. For Zomato, use the restaurant's page (it should have an Order Online tab).");
-      show(out.items, out.items.length ? `From ${esc(out.source)}${out.name ? ` · ${esc(out.name)}` : ''}. Descriptions are often empty on these sites.` : '', out.menuImages);
+      if (!out.items.length && !out.menuImages.length) return fail("Couldn't find a menu on that page. For Zomato, use the restaurant's page (it should have an Order Online tab); for AirMenus, the restaurant's menu link.");
+      show(out.items, out.items.length ? `From ${esc(out.source)}${out.name ? ` · ${esc(out.name)}` : ''}.${out.source.includes('zomato') ? ' Descriptions are often empty on Zomato.' : ''}` : '', out.menuImages);
     } catch (err) {
       fail(`Couldn't fetch the menu: ${err.message}`);
     } finally {
@@ -666,9 +669,9 @@ function openImport() {
   };
 }
 
-/* Photos from a listing (Zomato) are copied into the restaurant's own storage, resized like any upload, so the
-   menu never depends on Zomato's servers. The import-menu function fetches them (browsers can't, no CORS). */
-const isListingPhoto = (d) => /^https:\/\/([^/]+\.)?zmtcdn\.com\//.test(d.image || '');
+/* Photos from a listing (Zomato, AirMenus) are copied into the restaurant's own storage, resized like any upload, so
+   the menu never depends on their servers. The import-menu function fetches them (browsers can't, no CORS). */
+const isListingPhoto = (d) => /^https:\/\/(([^/]+\.)?zmtcdn\.com|airmenusimages\.[a-z0-9]+\.cdn\.digitaloceanspaces\.com)\//.test(d.image || '');
 
 async function copyListingPhotos(onProgress) {
   const todo = menu.dishes.filter(isListingPhoto);
@@ -1127,6 +1130,8 @@ function videoInner(d) {
 /* ==========================================================
    Categories & featured lists
    ========================================================== */
+const BADGE_TONES = [['primary', 'Primary colour'], ['secondary', 'Secondary colour'], ['neutral', 'Plain']];
+
 function renderCategories() {
   const v = $('#view');
   const cats = categories();
@@ -1190,7 +1195,69 @@ function renderCategories() {
         <input class="input" name="eyebrow" placeholder="Subtitle (optional)" style="flex:1;min-width:160px">
         <button class="btn" type="submit">${I.plus}Add list</button>
       </form>
+    </div>
+    <div class="panel" id="badges-panel">
+      <h3>Badges</h3>
+      <p>Small labels on an item, e.g. “Bestseller” or “Chef’s special”. Tick them per item in the item editor.</p>
+      ${Object.keys(menu.badges || {}).length ? '' : '<p class="hint">No badges yet. Add one below.</p>'}
+      ${Object.entries(menu.badges || {}).map(([k, b]) => {
+        const n = menu.dishes.filter((d) => (d.badges || []).includes(k)).length;
+        return `
+        <div class="cat-row badge-row" data-badge="${esc(k)}">
+          <label class="field">Label<input value="${esc(b.label)}" data-bk="label" maxlength="24"></label>
+          <label class="field">Style<select data-bk="tone">${BADGE_TONES.map(([t, l]) => `<option value="${t}" ${(b.tone || 'neutral') === t ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+          <span></span>
+          <span class="count">${n} item${n === 1 ? '' : 's'}</span>
+          <span class="reorder"><button class="icon-btn" data-bdel aria-label="Delete badge ${esc(b.label)}">${I.close}</button></span>
+        </div>`;
+      }).join('')}
+      <form id="add-badge" style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+        <input class="input" name="label" placeholder="New badge, e.g. Chef’s special" required maxlength="24" style="flex:1;min-width:180px">
+        <select class="input" name="tone" style="flex:0 0 170px">${BADGE_TONES.map(([t, l]) => `<option value="${t}">${l}</option>`).join('')}</select>
+        <button class="btn" type="submit">${I.plus}Add badge</button>
+      </form>
     </div>`;
+
+  const bp = $('#badges-panel');
+  bp.addEventListener('input', (e) => {
+    const row = e.target.closest('[data-badge]');
+    const k = e.target.dataset.bk;
+    if (!row || !k) return;
+    const b = menu.badges[row.dataset.badge];
+    b[k] = k === 'label' ? e.target.value.trim() || b.label : e.target.value;
+    setDirty();
+  });
+  bp.addEventListener('click', async (e) => {
+    const row = e.target.closest('[data-badge]');
+    if (!row || !e.target.closest('[data-bdel]')) return;
+    const key = row.dataset.badge;
+    const n = menu.dishes.filter((d) => (d.badges || []).includes(key)).length;
+    const ok = await confirmDialog({
+      title: `Delete the “${menu.badges[key].label}” badge?`,
+      body: `${n ? `It's removed from ${n} item${n === 1 ? '' : 's'}; the items stay on the menu. ` : ''}Takes effect when you Save & publish.`,
+      confirm: 'Delete badge', danger: true,
+    });
+    if (!ok) return;
+    delete menu.badges[key];
+    for (const d of menu.dishes) d.badges = (d.badges || []).filter((b) => b !== key);
+    setDirty();
+    renderCategories();
+  });
+  $('#add-badge').onsubmit = (e) => {
+    e.preventDefault();
+    const label = e.target.elements.label.value.trim();
+    if (!label) return;
+    menu.badges ||= {};
+    if (Object.values(menu.badges).some((b) => b.label.toLowerCase() === label.toLowerCase())) return toast(`There's already a “${label}” badge.`, true);
+    const base = slugify(label) || 'badge';
+    let key = base;
+    let n = 2;
+    while (menu.badges[key]) key = `${base}-${n++}`;
+    menu.badges[key] = { label, tone: e.target.elements.tone.value };
+    setDirty();
+    renderCategories();
+    toast(`Added the “${label}” badge. Tick it on items in the item editor.`);
+  };
 
   v.oninput = (e) => {
     const row = e.target.closest('[data-sec]');
