@@ -1476,6 +1476,16 @@ function renderBranding() {
       <p class="hint" style="margin-top:8px">Changes go live when you Save &amp; publish. Sold-out dishes are skipped automatically.</p>
     </div>
     <div class="panel">
+      <h3>Best sellers</h3>
+      <p>A numbered “Top 5” list near the top of the menu: items with the Bestseller badge first, topped up from your featured lists. It only appears when at least 3 items qualify.</p>
+      <label class="order-switch">
+        <input type="checkbox" id="top-on" role="switch" ${menu.showBestSellers !== false ? 'checked' : ''}>
+        <span class="os-track" aria-hidden="true"></span>
+        <span class="os-label">Best sellers <b>${menu.showBestSellers !== false ? 'Shown' : 'Hidden'}</b></span>
+      </label>
+      <p class="hint" style="margin-top:8px">${menu.dishes.filter((d) => ((d.badges || []).includes('bestseller') || (d.tags || []).includes('bestseller')) && d.available !== false).length} items are marked Bestseller (badge or Bestseller list). Changes go live when you Save &amp; publish.</p>
+    </div>
+    <div class="panel">
       <h3>Reviews &amp; Instagram</h3>
       <p>Shown as two buttons at the bottom of the menu. Leave a box empty to hide its button.</p>
       <div class="brand-grid" style="margin-top:12px">
@@ -1521,6 +1531,11 @@ function renderBranding() {
     $('#hero-on').closest('.panel').querySelector('.os-label b').textContent = e.target.checked ? 'On' : 'Off';
     $('#hero-dish').disabled = !e.target.checked;
     $('#hero-label').disabled = !e.target.checked;
+  };
+  $('#top-on').onchange = (e) => {
+    if (e.target.checked) delete menu.showBestSellers; else menu.showBestSellers = false;
+    $('#top-on').closest('.panel').querySelector('.os-label b').textContent = e.target.checked ? 'Shown' : 'Hidden';
+    setDirty();
   };
   $('#hero-dish').onchange = (e) => setHero({ dishId: e.target.value });
   $('#hero-label').oninput = (e) => { e.stopPropagation(); setHero({ label: e.target.value.trim() }); };

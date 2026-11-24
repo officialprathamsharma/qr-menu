@@ -500,6 +500,7 @@ function bindRails(root) {
 
 /* Best sellers: the dishes the owner marks Bestseller, topped up from the featured list, as a numbered top 5. */
 function bestSellers() {
+  if (data.showBestSellers === false) return []; // the owner switched the section off in Branding
   const marked = data.dishes.filter((d) => !soldOut(d) && (d.badges.includes('bestseller') || d.tags.includes('bestseller')));
   if (!marked.length) return [];
   const out = [...marked];
@@ -1016,16 +1017,48 @@ function pickActive() {
   if (state.manual && (ratios.get(state.manual) || 0) >= 0.3) return play(state.manual);
   state.manual = null;
   if (!state.autoplay) return play(null);
+  // Visibility is measured in the part of the screen guests can actually see: below the sticky search bar and
+  // section header, above the cart bar. A clip hidden under the header doesn't count as on screen.
+  const [top, bottom] = visibleBand();
   const candidates = [...ratios.entries()]
-    .filter(([v, r]) => r >= 0.6 && !state.userPaused.has(v) && v.isConnected)
-    .map(([v]) => v);
-  candidates.sort((a, b) => {
-    const ra = a.getBoundingClientRect();
-    const rb = b.getBoundingClientRect();
-    return ra.top - rb.top || ra.left - rb.left;
-  });
-  play(candidates[0] || null);
+    .filter(([v, r]) => r > 0 && !state.userPaused.has(v) && v.isConnected)
+    .map(([v]) => {
+      const rc = v.getBoundingClientRect();
+      const seenY = Math.max(0, Math.min(rc.bottom, bottom) - Math.max(rc.top, top));
+      const seenX = Math.max(0, Math.min(rc.right, innerWidth) - Math.max(rc.left, 0));
+      return { v, rc, seen: rc.height && rc.width ? (seenY / rc.height) * (seenX / rc.width) : 0 };
+    })
+    .filter((c) => c.seen >= 0.6);
+  candidates.sort((a, b) => a.rc.top - b.rc.top || a.rc.left - b.rc.left);
+  play(candidates[0]?.v || null);
 }
+
+/* The screen area not covered by the sticky toolbar, a stuck section header, or the cart bar. */
+function visibleBand() {
+  let top = 0;
+  const bar = $('.toolbar');
+  if (bar) top = Math.max(top, bar.getBoundingClientRect().bottom);
+  for (const h of $$('.cat.open .cat-h, .results-cat')) {
+    const r = h.getBoundingClientRect();
+    if (r.top <= top + 2 && r.bottom > top) top = r.bottom;
+  }
+  let bottom = innerHeight;
+  const cart = $('.cartbar');
+  if (cart && cart.getClientRects().length) {
+    const r = cart.getBoundingClientRect();
+    const btn = cart.firstElementChild?.getBoundingClientRect();
+    if (btn?.height && btn.top < bottom) bottom = btn.top;
+    else if (r.height && r.top < bottom) bottom = r.top;
+  }
+  return [top, bottom];
+}
+
+// The observer only reports whole-screen visibility, so re-check on scroll as well (at most once per frame).
+let bandTick = 0;
+addEventListener('scroll', () => {
+  if (bandTick) return;
+  bandTick = requestAnimationFrame(() => { bandTick = 0; pickActive(); });
+}, { passive: true });
 
 function play(v) {
   if (state.active && state.active !== v) state.active.pause();
@@ -1443,7 +1476,6 @@ const FILTER_GROUPS = [
 function filterSheetHtml() {
   const f = state.sheetFilters;
   const on = (key) => (key.startsWith('temp:') ? f.temp === key.slice(5) : Boolean(f[key]));
-  const max = f.maxPrice ?? 0;
   return `
     <div class="sheet-body filters">
       <h2 id="sheet-title">Filters</h2>
@@ -1452,10 +1484,6 @@ function filterSheetHtml() {
           <legend>${g.title}</legend>
           <div class="toggles">${g.items.map(([k, l]) => `<button type="button" class="chip" data-f="${k}" aria-pressed="${on(k)}">${l}</button>`).join('')}</div>
         </fieldset>`).join('')}
-      <fieldset>
-        <legend>Max price <output id="price-out">${max ? fmtPrice(max) : 'Any'}</output></legend>
-        <input type="range" id="price" min="0" max="500" step="25" value="${max}" aria-label="Maximum price">
-      </fieldset>
       <fieldset>
         <legend>Video</legend>
         <label class="switch"><input type="checkbox" id="autoplay" ${state.autoplay ? 'checked' : ''}><span>Autoplay dish videos</span></label>
@@ -1504,19 +1532,11 @@ function onFilterClick(e) {
   }
   if (e.target.closest('[data-freset]')) {
     state.sheetFilters = {};
-    $('#price').value = 0;
-    $('#price-out').textContent = 'Any';
     refreshFilterSheet();
   }
 }
 
 function onFilterInput(e) {
-  if (e.target.id === 'price') {
-    const v = +e.target.value;
-    state.sheetFilters.maxPrice = v || undefined;
-    $('#price-out').textContent = v ? fmtPrice(v) : 'Any';
-    refreshFilterSheet();
-  }
   if (e.target.id === 'autoplay') {
     state.autoplay = e.target.checked;
     pref.set('autoplay', state.autoplay ? '1' : '0');
