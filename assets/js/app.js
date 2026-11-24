@@ -127,7 +127,7 @@ function applyBackground(bg) {
 
 /* ---------- Boot ---------- */
 // The NomNom splash (in index.html) stays up for at least 2.5 s from page start (the logo chews three times, then
-// rests), then the logo shrinks away and the cream background parts like curtains to reveal the menu (~1.1 s).
+// rests), then the logo shrinks away and the two cream curtains are drawn aside to reveal the menu (~1.4 s).
 const SPLASH_MIN = prefersReduced ? 700 : 2500;
 function hideSplash() {
   const el = document.getElementById('splash');
@@ -135,7 +135,7 @@ function hideSplash() {
   el.dataset.leaving = '1';
   setTimeout(() => {
     el.classList.add('out');
-    setTimeout(() => el.remove(), prefersReduced ? 400 : 1200);
+    setTimeout(() => el.remove(), prefersReduced ? 400 : 1500);
   }, Math.max(0, SPLASH_MIN - performance.now()));
 }
 
@@ -233,7 +233,7 @@ function renderLanding() {
         <button class="btn" type="submit">Send to NomNom ${icons.arrow}</button>
         <small>Opens your email app with the details filled in. Or write to <a href="mailto:${NOMNOM_EMAIL}">${NOMNOM_EMAIL}</a>.</small>
       </form>
-      <p class="land-links"><a href="?r=demo">See a sample menu</a> · <a href="https://heynomnom.in" rel="noopener">heynomnom.in</a></p>
+      <p class="land-links"><a href="?r=pink-apron">See a sample menu</a> · <a href="https://heynomnom.in" rel="noopener">heynomnom.in</a></p>
     </div></div>`;
   $('#land-form').onsubmit = (e) => {
     e.preventDefault();
