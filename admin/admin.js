@@ -587,7 +587,7 @@ function openImport() {
           ${noPrice ? `<p class="warn">${noPrice} without a price (they'll show ₹0 until you edit them).</p>` : ''}
           ${noDiet ? `<p class="hint">${noDiet} without a veg/non-veg mark. Drinks are marked veg; set food items in the editor.</p>` : ''}
           ${note ? `<p class="hint">${note}</p>` : ''}
-          <p class="hint">Photos and videos aren't included; add them per item after importing.</p>
+          ${items.some((i) => i.image) ? `<p class="hint"><b>${items.filter((i) => i.image).length}</b> item photos will be copied into your own storage (optimised). Items that already have a photo keep it.</p>` : `<p class="hint">Photos and videos aren't included; add them per item after importing.</p>`}
         </div>
         <div class="imp-table-wrap"><table class="imp-table">
           <thead><tr><th>Item</th><th>Category</th><th>Price</th><th>Diet</th></tr></thead>
@@ -647,7 +647,7 @@ function openImport() {
     }
   };
 
-  $('#imp-apply', drawer).onclick = () => {
+  $('#imp-apply', drawer).onclick = async () => {
     if (!pending?.length) return;
     const replace = $('input[name=imp-mode]:checked', drawer).value === 'replace';
     if (replace && menu.dishes.length && !confirm(`Replace all ${menu.dishes.length} current items with ${pending.length} imported items?`)) return;
@@ -657,8 +657,52 @@ function openImport() {
     itemCat = 'all';
     renderApp();
     setDirty(true);
-    toast(`Imported: ${stats.added} added${stats.updated ? `, ${stats.updated} updated` : ''}${stats.newCategories ? `, ${stats.newCategories} new categories` : ''}. Review, then Save & publish.`);
+    const summary = `Imported: ${stats.added} added${stats.updated ? `, ${stats.updated} updated` : ''}${stats.newCategories ? `, ${stats.newCategories} new categories` : ''}.`;
+    if (!menu.dishes.some(isListingPhoto)) return toast(`${summary} Review, then Save & publish.`);
+    toast(`${summary} Copying photos…`);
+    const { copied, failed } = await copyListingPhotos((done, total) => toast(`Copying photos ${done}/${total}…`));
+    renderApp();
+    toast(`${summary} ${copied} photos copied${failed ? `; ${failed} couldn't be copied, add those by hand` : ''}. Review, then Save & publish.`, failed > 0);
   };
+}
+
+/* Photos from a listing (Zomato) are copied into the restaurant's own storage, resized like any upload, so the
+   menu never depends on Zomato's servers. The import-menu function fetches them (browsers can't, no CORS). */
+const isListingPhoto = (d) => /^https:\/\/([^/]+\.)?zmtcdn\.com\//.test(d.image || '');
+
+async function copyListingPhotos(onProgress) {
+  const todo = menu.dishes.filter(isListingPhoto);
+  const token = await accessToken();
+  let done = 0;
+  let copied = 0;
+  let failed = 0;
+  const copyOne = async (d) => {
+    const src = d.image;
+    try {
+      const res = await fetch(`${CONFIG.supabaseUrl}/functions/v1/import-menu`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: CONFIG.supabaseAnonKey, Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ image: src }),
+      });
+      const blob = await res.blob();
+      if (!res.ok || !blob.type.startsWith('image/')) throw new Error(`status ${res.status}`);
+      const { full, thumb } = await makePhotoSet(blob);
+      await savePhotoSet(d, full, thumb);
+      d.focus = '50% 50%';
+      copied++;
+    } catch (err) {
+      console.warn('Photo copy failed', d.name, err);
+      if (d.image === src) { d.image = ''; delete d.thumb; }
+      failed++;
+    }
+    onProgress?.(++done, todo.length);
+  };
+  const queue = [...todo];
+  await Promise.all(Array.from({ length: Math.min(4, queue.length) }, async () => {
+    while (queue.length) await copyOne(queue.shift());
+  }));
+  setDirty(true);
+  return { copied, failed };
 }
 
 async function accessToken() {

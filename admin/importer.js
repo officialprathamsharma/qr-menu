@@ -194,7 +194,7 @@ export function applyImport(menu, items, { replace = false, slugify }) {
       if (it.description) existing.description = it.description;
       if (it.veg != null) existing.diet = { ...existing.diet, veg: it.veg, egg: it.egg, vegan: it.vegan || existing.diet?.vegan };
       if (it.prepTime) existing.prepTime = it.prepTime;
-      if (it.image) existing.image = it.image;
+      if (it.image && !existing.image) existing.image = it.image; // never replace a photo the owner already has
       if (it.video) existing.video = it.video;
       existing.available = it.available;
       stats.updated++;

@@ -67,8 +67,11 @@ the dashboard to prospects. Edits there never affect a real restaurant's menu.
 `import-menu` Edge Function (Supabase dashboard → Edge Functions → Deploy a new function → Via editor, then paste the
 file). It only fetches Zomato, EazyDiner and Swiggy Dineout pages.
 
-- **Zomato**: the full item list (name, category, price, description, veg/non-veg) for restaurants with online ordering.
-  No photos.
+- **Zomato**: the full item list (name, category, price, description, veg/non-veg) and item photos, for restaurants
+  with online ordering. When the import is applied, each photo is downloaded through the same function (its
+  `{ image }` mode, Zomato image servers only), resized in the browser like any upload (≤1280 px WebP plus a small card
+  copy) and saved in the restaurant's own `photos/` folder, so the menu never loads images from Zomato. Items that
+  already have a photo keep it, and photos that can't be copied are left empty to add by hand.
 - **EazyDiner / Dineout**: these sites only publish photos of the printed menu, so the dashboard shows those photos for
   the owner to copy into the spreadsheet template.
 - Only import a restaurant's listing with that restaurant's permission, and expect these sites to change their pages

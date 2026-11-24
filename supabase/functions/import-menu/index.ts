@@ -1,6 +1,8 @@
 // Supabase Edge Function: import-menu
 // Reads a restaurant's public listing page and returns its menu for the dashboard's "Import from a link".
-//   POST { url }  →  { source, name, items: [{ name, category, price, description, veg, egg }], menuImages: [url] }
+//   POST { url }    →  { source, name, items: [{ name, category, price, description, veg, egg, image }], menuImages: [url] }
+//   POST { image }  →  the image's bytes, so the dashboard can copy an item photo into the restaurant's own storage
+//                      (Zomato's image servers don't allow browsers to download them directly). Zomato images only.
 // - Zomato (pages with online ordering): full item list from the page's embedded data.
 // - EazyDiner / Swiggy Dineout: these only publish PHOTOS of the printed menu, so we return those photos
 //   (plus any schema.org menu items the page happens to include).
@@ -8,6 +10,8 @@
 // Deploy: Supabase dashboard → Edge Functions → Deploy a new function → Via editor, name "import-menu", paste this file.
 
 const ALLOWED = [/(^|\.)zomato\.com$/, /(^|\.)eazydiner\.com$/, /(^|\.)swiggy\.com$/, /(^|\.)dineout\.co\.in$/];
+const IMAGE_HOSTS = [/(^|\.)zmtcdn\.com$/];
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024;
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -24,9 +28,13 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'POST') return json({ error: 'Use POST' }, 405);
 
+  let body: { url?: string; image?: string };
+  try { body = await req.json(); } catch { return json({ error: 'Send JSON' }, 400); }
+  if (body.image) return proxyImage(String(body.image));
+
   let url: URL;
   try {
-    url = new URL(String((await req.json()).url || '').trim());
+    url = new URL(String(body.url || '').trim());
   } catch {
     return json({ error: 'Paste the full link, starting with https://' }, 400);
   }
@@ -59,6 +67,25 @@ Deno.serve(async (req) => {
   out.menuImages = [...new Set(out.menuImages)].slice(0, 40);
   return json(out);
 });
+
+async function proxyImage(raw: string) {
+  let url: URL;
+  try { url = new URL(raw.trim()); } catch { return json({ error: 'Bad image link' }, 400); }
+  if (url.protocol !== 'https:' || !IMAGE_HOSTS.some((re) => re.test(url.hostname))) {
+    return json({ error: 'Only Zomato item photos can be copied.' }, 400);
+  }
+  try {
+    const res = await fetch(url, { headers: { 'User-Agent': UA, Accept: 'image/avif,image/webp,image/*' }, redirect: 'follow' });
+    const type = res.headers.get('content-type') || '';
+    if (!IMAGE_HOSTS.some((re) => re.test(new URL(res.url).hostname))) return json({ error: 'Image moved off Zomato.' }, 502);
+    if (!res.ok || !type.startsWith('image/')) return json({ error: `Image not available (${res.status}).` }, 502);
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    if (bytes.byteLength > MAX_IMAGE_BYTES) return json({ error: 'Image is too large.' }, 413);
+    return new Response(bytes, { headers: { ...cors, 'Content-Type': type, 'Cache-Control': 'no-store' } });
+  } catch (e) {
+    return json({ error: `Couldn't download the image (${(e as Error).message}).` }, 502);
+  }
+}
 
 function parseZomato(html: string, out: { name: string; items: Item[] }) {
   const m = html.match(/window\.__PRELOADED_STATE__\s*=\s*JSON\.parse\(("(?:[^"\\]|\\.)*")\);/);
