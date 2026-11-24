@@ -99,11 +99,10 @@ function applyTheme({ primary, secondary, background } = {}) {
 function applyBackground(bg) {
   const root = document.documentElement.style;
   const keys = ['--bg', '--surface', '--surface-2', '--surface-3', '--glass', '--line', '--line-strong', '--text', '--muted', '--faint', '--accent-ink', '--scrim'];
-  const meta = document.querySelector('meta[name="theme-color"]');
   if (!bg) {
     for (const k of keys) root.removeProperty(k);
     root.removeProperty('color-scheme');
-    meta?.setAttribute('content', '#fff6ed');
+    setBarColour('#fff6ed');
     return;
   }
   const dark = readableOn(bg) === '#ffffff';
@@ -122,12 +121,21 @@ function applyBackground(bg) {
   root.setProperty('--accent-ink', dark ? 'color-mix(in oklab, var(--primary) 70%, #ffffff)' : 'color-mix(in oklab, var(--primary) 44%, #221c17)');
   root.setProperty('--scrim', dark ? 'rgba(0, 0, 0, 0.6)' : 'rgba(34, 24, 16, 0.42)');
   root.setProperty('color-scheme', dark ? 'dark' : 'light');
-  meta?.setAttribute('content', bg);
+  setBarColour(bg);
+}
+
+/* The browser bar colour (theme-color) follows the menu's background, but only once the NomNom splash starts
+   leaving; until then it stays cream so the restaurant's colour doesn't show round the splash's edges. */
+let pendingBarColour = null;
+function setBarColour(c) {
+  const splash = document.getElementById('splash');
+  if (splash && !splash.classList.contains('out')) { pendingBarColour = c; return; }
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', c);
 }
 
 /* ---------- Boot ---------- */
 // The NomNom splash (in index.html) stays up for at least 2.5 s from page start (the logo chews three times, then
-// rests), then the logo shrinks away and the two cream curtains are drawn aside to reveal the menu (~1.4 s).
+// rests), then the logo shrinks away and the cream splash fades out to reveal the menu (~1 s).
 const SPLASH_MIN = prefersReduced ? 700 : 2500;
 function hideSplash() {
   const el = document.getElementById('splash');
@@ -135,7 +143,8 @@ function hideSplash() {
   el.dataset.leaving = '1';
   setTimeout(() => {
     el.classList.add('out');
-    setTimeout(() => el.remove(), prefersReduced ? 400 : 1500);
+    if (pendingBarColour) setBarColour(pendingBarColour);
+    setTimeout(() => el.remove(), prefersReduced ? 400 : 1200);
   }, Math.max(0, SPLASH_MIN - performance.now()));
 }
 

@@ -20,31 +20,39 @@
   <link rel="stylesheet" href="assets/css/styles.css" />
   <!-- The NomNom splash paints before any script or stylesheet arrives. -->
   <style>
-    /* The background is a pair of cream stage curtains with soft folds. When the splash leaves, the logo goes first,
-       then each curtain is drawn to its side: the fabric bunches up (folds get tighter) and the hem sweeps out ahead
-       of the top, like a curtain being tied back, then fades so nothing is left over the menu. */
-    .splash { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; overflow: hidden; background: transparent; }
-    .splash-curtain { position: absolute; top: 0; bottom: 0; width: calc(50% + 1px); will-change: transform, clip-path;
-      background:
-        linear-gradient(180deg, rgba(120,80,40,.10), transparent 9%),
-        repeating-linear-gradient(90deg, #fff7ee 0, #fbecdb 13px, #f1dcc4 22px, #fbecdb 31px, #fff7ee 44px); }
-    .sc-l { left: 0; transform-origin: 0 50%; box-shadow: inset -18px 0 22px -14px rgba(110,70,30,.28); }
-    .sc-r { right: 0; transform-origin: 100% 50%; box-shadow: inset 18px 0 22px -14px rgba(110,70,30,.28); }
-    .splash.out .sc-l { animation: curtain-l 1.15s cubic-bezier(.6,0,.3,1) .25s forwards; }
-    .splash.out .sc-r { animation: curtain-r 1.15s cubic-bezier(.6,0,.3,1) .25s forwards; }
-    @keyframes curtain-l {
-      0% { transform: scaleX(1); clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); opacity: 1; }
-      45% { transform: scaleX(.62); clip-path: polygon(0 0, 100% 0, 62% 100%, 0 100%); opacity: 1; }
-      80% { transform: scaleX(.2); clip-path: polygon(0 0, 100% 0, 30% 100%, 0 100%); opacity: 1; }
-      100% { transform: scaleX(.12); clip-path: polygon(0 0, 100% 0, 22% 100%, 0 100%); opacity: 0; }
-    }
-    @keyframes curtain-r {
-      0% { transform: scaleX(1); clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); opacity: 1; }
-      45% { transform: scaleX(.62); clip-path: polygon(0 0, 100% 0, 100% 100%, 38% 100%); opacity: 1; }
-      80% { transform: scaleX(.2); clip-path: polygon(0 0, 100% 0, 100% 100%, 70% 100%); opacity: 1; }
-      100% { transform: scaleX(.12); clip-path: polygon(0 0, 100% 0, 100% 100%, 78% 100%); opacity: 0; }
-    }
-    .splash-inner { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 14px; transition: opacity .3s ease, transform .35s cubic-bezier(.5,0,.75,0); }
+    /* Splash: a soft cream gradient behind the logo. When it leaves, the logo shrinks away and the whole splash fades out.
+       The gradient's outer colour (#fff6ed) matches the browser bars (theme-color) and the page behind it, and the
+       page is held at that colour while the splash shows, so no restaurant colour peeks round the edges. */
+    .splash { position: fixed; inset: -2px; z-index: 100; display: grid; place-items: center; overflow: hidden;
+      background: radial-gradient(130% 95% at 50% 42%, #fffcf8 0%, #fff9f2 45%, #fff6ed 100%) #fff6ed;
+      transition: opacity .8s ease .25s, visibility 0s linear 1.05s; }
+    .splash.out { opacity: 0; visibility: hidden; }
+    html:has(> body > .splash:not(.out)), html:has(> body > .splash:not(.out)) body { background: #fff6ed !important; }
+    /* Stage curtains, parked for now (felt too playful for fine dining and bars). To bring them back: restore this
+       block, give .splash a transparent background with no fade, and uncomment the two curtain spans in <body>.
+       .splash { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; overflow: hidden; background: transparent; }
+       .splash-curtain { position: absolute; top: 0; bottom: 0; width: calc(50% + 1px); will-change: transform, clip-path;
+       background:
+       linear-gradient(180deg, rgba(120,80,40,.10), transparent 9%),
+       repeating-linear-gradient(90deg, #fff7ee 0, #fbecdb 13px, #f1dcc4 22px, #fbecdb 31px, #fff7ee 44px); }
+       .sc-l { left: 0; transform-origin: 0 50%; box-shadow: inset -18px 0 22px -14px rgba(110,70,30,.28); }
+       .sc-r { right: 0; transform-origin: 100% 50%; box-shadow: inset 18px 0 22px -14px rgba(110,70,30,.28); }
+       .splash.out .sc-l { animation: curtain-l 1.15s cubic-bezier(.6,0,.3,1) .25s forwards; }
+       .splash.out .sc-r { animation: curtain-r 1.15s cubic-bezier(.6,0,.3,1) .25s forwards; }
+       @keyframes curtain-l {
+       0% { transform: scaleX(1); clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); opacity: 1; }
+       45% { transform: scaleX(.62); clip-path: polygon(0 0, 100% 0, 62% 100%, 0 100%); opacity: 1; }
+       80% { transform: scaleX(.2); clip-path: polygon(0 0, 100% 0, 30% 100%, 0 100%); opacity: 1; }
+       100% { transform: scaleX(.12); clip-path: polygon(0 0, 100% 0, 22% 100%, 0 100%); opacity: 0; }
+       }
+       @keyframes curtain-r {
+       0% { transform: scaleX(1); clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); opacity: 1; }
+       45% { transform: scaleX(.62); clip-path: polygon(0 0, 100% 0, 100% 100%, 38% 100%); opacity: 1; }
+       80% { transform: scaleX(.2); clip-path: polygon(0 0, 100% 0, 100% 100%, 70% 100%); opacity: 1; }
+       100% { transform: scaleX(.12); clip-path: polygon(0 0, 100% 0, 100% 100%, 78% 100%); opacity: 0; }
+       }
+    */
+    .splash-inner { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 14px; transition: opacity .4s ease, transform .45s cubic-bezier(.5,0,.75,0); }
     .splash.out .splash-inner { opacity: 0; transform: scale(.86); }
     .splash-by { margin: 0; font: 600 15px/1 'Figtree', system-ui, -apple-system, sans-serif; letter-spacing: .08em; color: #6b5a4a; animation: by-in .5s ease .1s both; }
     @keyframes by-in { from { opacity: 0; transform: translateY(6px); } }
@@ -54,11 +62,11 @@
     .splash-logo .sl-bot { background-position: 0 100%; animation: chew-bot .5s ease-in-out .2s 3; }
     @keyframes chew-top { 50% { transform: translateY(9%); } }
     @keyframes chew-bot { 50% { transform: translateY(-9%); } }
-    @media (prefers-reduced-motion: reduce) { .splash-logo span, .splash-by { animation: none; } .splash-inner { transition: opacity .3s; } .splash.out .splash-curtain { animation: none; opacity: 0; transition: opacity .3s; } }
+    @media (prefers-reduced-motion: reduce) { .splash-logo span, .splash-by { animation: none; } .splash, .splash-inner { transition: opacity .3s; } }
   </style>
 </head>
 <body>
-  <div id="splash" class="splash" role="img" aria-label="Menu powered by NomNom"><span class="splash-curtain sc-l"></span><span class="splash-curtain sc-r"></span><div class="splash-inner"><p class="splash-by">menu powered by</p><div class="splash-logo"><span class="sl-top"></span><span class="sl-bot"></span></div></div></div>
+  <div id="splash" class="splash" role="img" aria-label="Menu powered by NomNom"><!-- <span class="splash-curtain sc-l"></span><span class="splash-curtain sc-r"></span> --><div class="splash-inner"><p class="splash-by">menu powered by</p><div class="splash-logo"><span class="sl-top"></span><span class="sl-bot"></span></div></div></div>
   <div id="app"></div>
   <script type="module" src="assets/js/app.js"></script>
 </body>
