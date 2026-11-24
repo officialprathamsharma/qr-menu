@@ -816,7 +816,7 @@ function blankDish() {
   const cat = itemCat !== 'all' ? itemCat : categories()[0]?.match || '';
   const group = categories().find((c) => c.match === cat)?.group;
   return {
-    id: '', name: '', category: cat, price: 0, prepTime: 10, image: '', description: '', tags: [], badges: [],
+    id: '', name: '', category: cat, price: 0, image: '', description: '', tags: [], badges: [],
     diet: { veg: true, egg: false, vegan: false, gf: false }, spice: 0, course: group === 'drinks' ? 'drink' : 'meal',
     coffee: false, available: true,
   };
@@ -1059,7 +1059,7 @@ function openEditor(dish) {
     const kind = f.get('vegKind');
     Object.assign(d, {
       name, price, category: f.get('category'),
-      prepTime: num('prepTime'), kcal: num('kcal'),
+      prepTime: num('prepTime') > 0 ? num('prepTime') : undefined, kcal: num('kcal'),
       description: String(f.get('description') || '').trim(),
       diet: { veg: kind === 'veg', egg: kind === 'egg', vegan: kind === 'veg' && f.has('vegan'), gf: f.has('gf') },
       coffee: f.has('coffee'), spice: Number(f.get('spice') || 0),

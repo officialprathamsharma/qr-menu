@@ -4,7 +4,7 @@
    - rowsToItems(rows) → { items, unknownColumns, missing }. Column names are matched loosely
      ("Item Name", "Dish", "Rate (₹)", "Veg/Non-Veg"…), so most existing menu sheets work as they are.
    - applyImport(menu, items, { replace }) adds the items to the menu and creates any missing
-     categories, guessing Drinks/Food, hot/cold, coffee and prep time from the names.
+     categories, guessing Drinks/Food, hot/cold and coffee from the names.
    ========================================================== */
 
 const SHEETJS = 'https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs';
@@ -193,7 +193,7 @@ export function applyImport(menu, items, { replace = false, slugify }) {
       if (it.price != null) existing.price = it.price;
       if (it.description) existing.description = it.description;
       if (it.veg != null) existing.diet = { ...existing.diet, veg: it.veg, egg: it.egg, vegan: it.vegan || existing.diet?.vegan };
-      if (it.prepTime) existing.prepTime = it.prepTime;
+      if (it.prepTime > 0) existing.prepTime = it.prepTime;
       if (it.image && !existing.image) existing.image = it.image; // never replace a photo the owner already has
       if (it.video) existing.video = it.video;
       existing.available = it.available;
@@ -209,7 +209,7 @@ export function applyImport(menu, items, { replace = false, slugify }) {
       name: it.name,
       category: cat.match,
       price: it.price ?? 0,
-      prepTime: it.prepTime || (isDrink ? 5 : SIDE_RE.test(it.name) ? 8 : 12),
+      ...(it.prepTime > 0 ? { prepTime: it.prepTime } : {}), // no guessed time: guests only see one the restaurant gave
       image: it.image || '',
       ...(it.video ? { video: it.video } : {}),
       description: it.description || '',
