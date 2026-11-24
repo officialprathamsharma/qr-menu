@@ -975,7 +975,7 @@ function observeVideos(root) {
     v.addEventListener('waiting', () => media.classList.add('buffering'));
     v.addEventListener('error', () => failVideo(v));
     v.addEventListener('loadedmetadata', () => {
-      // Upright clips (shot on a phone) are shown whole, never cut: they sit on a soft blurred copy of the photo.
+      // Upright clips (shot on a phone) get a taller card and fill it, trimmed a little top and bottom.
       if (v.videoHeight > v.videoWidth * 1.05) {
         media.classList.add('upright');
         if (media.closest('.feature.wide')) media.classList.add('tall');
