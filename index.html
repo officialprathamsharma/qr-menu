@@ -20,23 +20,28 @@
   <link rel="stylesheet" href="assets/css/styles.css" />
   <!-- The NomNom splash paints before any script or stylesheet arrives. -->
   <style>
-    .splash { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: #fff6ed; transition: opacity .45s ease, visibility 0s linear .45s; }
-    .splash.out { opacity: 0; visibility: hidden; }
-    .splash-inner { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+    /* The cream background is two curtains: when the splash leaves, the logo goes first, then they part to reveal the menu. */
+    .splash { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; overflow: hidden; }
+    .splash-curtain { position: absolute; top: 0; bottom: 0; width: calc(50% + 1px); background: #fff6ed; transition: transform .8s cubic-bezier(.76,0,.24,1) .3s, box-shadow .8s ease .3s; }
+    .sc-l { left: 0; }
+    .sc-r { right: 0; }
+    .splash.out .sc-l { transform: translateX(-101%); box-shadow: 12px 0 40px rgba(60,40,20,.18); }
+    .splash.out .sc-r { transform: translateX(101%); box-shadow: -12px 0 40px rgba(60,40,20,.18); }
+    .splash-inner { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 14px; transition: opacity .3s ease, transform .35s cubic-bezier(.5,0,.75,0); }
+    .splash.out .splash-inner { opacity: 0; transform: scale(.86); }
     .splash-by { margin: 0; font: 600 15px/1 'Figtree', system-ui, -apple-system, sans-serif; letter-spacing: .08em; color: #6b5a4a; animation: by-in .5s ease .1s both; }
     @keyframes by-in { from { opacity: 0; transform: translateY(6px); } }
-    .splash-logo { width: min(56vw, 240px); aspect-ratio: 640 / 380; display: grid; grid-template-rows: 1fr 1fr; transition: transform .45s cubic-bezier(.16,1,.3,1); }
-    .splash.out .splash-logo { transform: scale(1.08); }
+    .splash-logo { width: min(56vw, 240px); aspect-ratio: 640 / 380; display: grid; grid-template-rows: 1fr 1fr; }
     .splash-logo span { background: url(assets/brand/nomnom-logo.png) no-repeat; background-size: 100% 200%; }
-    .splash-logo .sl-top { background-position: 0 0; animation: chew-top .5s ease-in-out .15s 2; }
-    .splash-logo .sl-bot { background-position: 0 100%; animation: chew-bot .5s ease-in-out .15s 2; }
+    .splash-logo .sl-top { background-position: 0 0; animation: chew-top .5s ease-in-out .2s 3; }
+    .splash-logo .sl-bot { background-position: 0 100%; animation: chew-bot .5s ease-in-out .2s 3; }
     @keyframes chew-top { 50% { transform: translateY(9%); } }
     @keyframes chew-bot { 50% { transform: translateY(-9%); } }
-    @media (prefers-reduced-motion: reduce) { .splash-logo span, .splash-by { animation: none; } .splash, .splash-logo { transition: opacity .2s; } }
+    @media (prefers-reduced-motion: reduce) { .splash-logo span, .splash-by { animation: none; } .splash-curtain, .splash-inner { transition: opacity .3s; } .splash.out .splash-curtain { transform: none; opacity: 0; } }
   </style>
 </head>
 <body>
-  <div id="splash" class="splash" role="img" aria-label="Menu powered by NomNom"><div class="splash-inner"><p class="splash-by">menu powered by</p><div class="splash-logo"><span class="sl-top"></span><span class="sl-bot"></span></div></div></div>
+  <div id="splash" class="splash" role="img" aria-label="Menu powered by NomNom"><span class="splash-curtain sc-l"></span><span class="splash-curtain sc-r"></span><div class="splash-inner"><p class="splash-by">menu powered by</p><div class="splash-logo"><span class="sl-top"></span><span class="sl-bot"></span></div></div></div>
   <div id="app"></div>
   <script type="module" src="assets/js/app.js"></script>
 </body>

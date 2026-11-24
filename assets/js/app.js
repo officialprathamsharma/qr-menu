@@ -126,15 +126,16 @@ function applyBackground(bg) {
 }
 
 /* ---------- Boot ---------- */
-// The NomNom splash (in index.html) stays up for at least ~1.3 s from page start, then lifts away.
-const SPLASH_MIN = prefersReduced ? 500 : 1300;
+// The NomNom splash (in index.html) stays up for at least 2.5 s from page start (the logo chews three times, then
+// rests), then the logo shrinks away and the cream background parts like curtains to reveal the menu (~1.1 s).
+const SPLASH_MIN = prefersReduced ? 700 : 2500;
 function hideSplash() {
   const el = document.getElementById('splash');
   if (!el || el.dataset.leaving) return;
   el.dataset.leaving = '1';
   setTimeout(() => {
     el.classList.add('out');
-    setTimeout(() => el.remove(), 500);
+    setTimeout(() => el.remove(), prefersReduced ? 400 : 1200);
   }, Math.max(0, SPLASH_MIN - performance.now()));
 }
 
