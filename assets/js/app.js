@@ -177,6 +177,7 @@ function normalize() {
   data.categories.forEach((c) => catById.set(c.match, c));
   for (const d of data.dishes) {
     d.diet ||= {};
+    if (d.diet.veg == null) d.diet.veg = !d.diet.egg; // an item without a veg/non-veg mark counts as veg
     d.badges ||= [];
     d.tags ||= [];
   }

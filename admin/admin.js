@@ -204,7 +204,12 @@ function normalize() {
   menu.groups ||= [{ id: 'drinks', label: 'Drinks' }, { id: 'food', label: 'Food' }];
   menu.badges ||= { bestseller: { label: 'Bestseller', tone: 'primary' }, new: { label: 'New', tone: 'neutral' } };
   menu.theme ||= { primary: '#d4a373', secondary: '#6b8f4e' };
-  for (const d of menu.dishes) { d.diet ||= { veg: true }; d.tags ||= []; d.badges ||= []; }
+  for (const d of menu.dishes) {
+    d.diet ||= { veg: true };
+    if (d.diet.veg == null) d.diet.veg = !d.diet.egg; // unmarked items are veg, as on the guest menu
+    d.tags ||= [];
+    d.badges ||= [];
+  }
 }
 
 function fatal(msg, withSignOut = false) {

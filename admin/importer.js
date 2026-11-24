@@ -91,6 +91,7 @@ function parseDiet(v) {
   const s = String(v ?? '').trim().toLowerCase();
   if (!s) return null;
   if (/vegan/.test(s)) return { veg: true, vegan: true };
+  if (/egg\s*less|egg-?free|no egg|without egg/.test(s)) return { veg: true };
   if (/egg/.test(s)) return { veg: false, egg: true };
   if (/non|nv\b|meat|chicken|^n$|^no$|false|^0$|🔴|🟥/.test(s)) return { veg: false };
   if (/veg|^v$|^y$|yes|true|^1$|🟢|🟩/.test(s)) return { veg: true };
@@ -193,6 +194,7 @@ export function applyImport(menu, items, { replace = false, slugify }) {
       if (it.price != null) existing.price = it.price;
       if (it.description) existing.description = it.description;
       if (it.veg != null) existing.diet = { ...existing.diet, veg: it.veg, egg: it.egg, vegan: it.vegan || existing.diet?.vegan };
+      else if (existing.diet?.veg == null) existing.diet = { ...existing.diet, veg: true }; // unmarked stays veg
       if (it.prepTime > 0) existing.prepTime = it.prepTime;
       if (it.image && !existing.image) existing.image = it.image; // never replace a photo the owner already has
       if (it.video) existing.video = it.video;
