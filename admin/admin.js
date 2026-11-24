@@ -1438,10 +1438,10 @@ function renderBranding() {
       <h3>Logo</h3>
       <div class="logo-edit" style="margin-top:10px">
         ${menu.logo ? `<img data-media="${esc(menu.logo)}" alt="Logo">` : `<div class="mono" style="background:${esc(t.primary)};color:#0b0b0b">${esc((menu.name || '?')[0])}</div>`}
-        <label class="btn ghost sm">Upload logo<input type="file" accept="image/*" id="logo-file" class="sr-only"></label>
-        ${menu.logo ? '<button class="btn ghost sm" id="logo-remove">Remove</button>' : ''}
+        <label class="btn ghost sm">${menu.logo ? 'Replace' : 'Upload logo'}<input type="file" accept="image/*" id="logo-file" class="sr-only"></label>
+        ${menu.logo ? '<button class="btn ghost sm" id="logo-crop">Zoom &amp; crop</button><button class="btn ghost sm" id="logo-remove">Remove</button>' : ''}
       </div>
-      <p class="hint" style="margin-top:8px">Square image, at least 256×256. Without a logo we show your first letter.</p>
+      <p class="hint" style="margin-top:8px">Any image works: after choosing it you can zoom and drag to frame it. Without a logo we show your first letter.</p>
     </div>
     <div class="panel">
       <h3>Colours</h3>
@@ -1555,18 +1555,114 @@ function renderBranding() {
   const bgReset = $('#bg-reset');
   if (bgReset) bgReset.onclick = () => { delete menu.theme.background; setDirty(); renderBranding(); };
   v.onchange = (e) => { if (e.target.dataset.b === 'currency') { menu.currency = e.target.value; setDirty(); } };
+  // The original (up to 1600 px) is kept as menu.logoSrc so the logo can be re-cropped later without losing detail.
+  const saveLogo = async (source, srcUrl) => {
+    const crop = await cropLogo(source, menu.logoCrop && srcUrl === menu.logoSrc ? menu.logoCrop : null);
+    if (!crop) return;
+    const target = MODE === 'live' ? 'supabase' : 'local';
+    toast('Saving logo…');
+    if (!srcUrl) srcUrl = await uploadMedia(slug, await compressImage(source, 1600), 'brand', target);
+    menu.logo = await uploadMedia(slug, crop.blob, 'brand', target);
+    menu.logoSrc = srcUrl;
+    menu.logoCrop = crop.state;
+    setDirty();
+    renderBranding();
+    toast('Logo updated. Save & publish to show it to guests.');
+  };
   $('#logo-file').onchange = async (e) => {
     const file = e.target.files[0];
     e.target.value = '';
     if (!file) return;
-    try {
-      const blob = await compressImage(file, 512);
-      menu.logo = await uploadMedia(slug, blob, 'brand', MODE === 'live' ? 'supabase' : 'local');
-      setDirty();
-      renderBranding();
-    } catch (err) { toast(`Logo upload failed: ${err.message || err}`, true); }
+    if (!file.type.startsWith('image/')) return toast('Please choose an image file.', true);
+    try { await saveLogo(file, null); } catch (err) { toast(`Logo upload failed: ${err.message || err}`, true); }
   };
-  $('#logo-remove')?.addEventListener('click', () => { menu.logo = null; setDirty(); renderBranding(); });
+  $('#logo-crop')?.addEventListener('click', async () => {
+    try {
+      const src = menu.logoSrc || menu.logo;
+      const res = await fetch(await resolveMedia(src));
+      if (!res.ok) throw new Error(`couldn't load the logo (${res.status})`);
+      await saveLogo(await res.blob(), src);
+    } catch (err) { toast(`Couldn't open the logo: ${err.message || err}`, true); }
+  });
+  $('#logo-remove')?.addEventListener('click', () => { menu.logo = null; delete menu.logoSrc; delete menu.logoCrop; setDirty(); renderBranding(); });
+}
+
+/* Logo zoom & crop: drag to move, slider / wheel / pinch to zoom. Output is a 512×512 square (transparency kept).
+   Zooming out below "fill" fits a wide logo inside the square with transparent edges. Resolves { blob, state } or null. */
+async function cropLogo(source, prev) {
+  const bmp = await createImageBitmap(source);
+  const VIEW = 260;
+  const OUT = 512;
+  const fill = Math.max(VIEW / bmp.width, VIEW / bmp.height);
+  const fit = Math.min(VIEW / bmp.width, VIEW / bmp.height);
+  const minZ = fit / fill; // zoom 1 = fills the square
+  const st = { z: prev?.z ?? 1, x: prev?.x ?? 0, y: prev?.y ?? 0 }; // x/y: offset of the image centre, in view px
+  let canvas;
+  const clamp = () => {
+    st.z = Math.min(5, Math.max(minZ, st.z));
+    const w = bmp.width * fill * st.z;
+    const h = bmp.height * fill * st.z;
+    const lx = Math.abs(w - VIEW) / 2;
+    const ly = Math.abs(h - VIEW) / 2;
+    st.x = Math.min(lx, Math.max(-lx, st.x));
+    st.y = Math.min(ly, Math.max(-ly, st.y));
+  };
+  const draw = (cv, size) => {
+    const k = size / VIEW;
+    const ctx = cv.getContext('2d');
+    ctx.clearRect(0, 0, size, size);
+    ctx.imageSmoothingQuality = 'high';
+    const w = bmp.width * fill * st.z * k;
+    const h = bmp.height * fill * st.z * k;
+    ctx.drawImage(bmp, size / 2 + st.x * k - w / 2, size / 2 + st.y * k - h / 2, w, h);
+  };
+  clamp();
+  const v = await openDialog({
+    title: 'Zoom & crop logo',
+    body: `
+      <div class="crop-wrap">
+        <div class="crop-view"><canvas width="${VIEW * 2}" height="${VIEW * 2}"></canvas><span class="crop-mask" aria-hidden="true"></span></div>
+        <label class="crop-zoom"><span>Zoom</span><input type="range" min="${minZ.toFixed(3)}" max="5" step="0.01" value="${st.z}" aria-label="Zoom"></label>
+        <div class="crop-btns"><button type="button" class="btn ghost sm" data-crop="fit">Fit whole logo</button><button type="button" class="btn ghost sm" data-crop="fill">Fill square</button></div>
+        <p class="hint">Drag to move. The rounded outline shows how guests see it.</p>
+      </div>`,
+    buttons: [{ label: 'Cancel', value: 'no', kind: 'ghost' }, { label: 'Use logo', value: 'yes', submit: true }],
+    onOpen: (d) => {
+      canvas = d.querySelector('canvas');
+      const range = d.querySelector('input[type=range]');
+      const paint = () => { clamp(); range.value = st.z; draw(canvas, VIEW * 2); };
+      paint();
+      range.oninput = () => { st.z = Number(range.value); paint(); };
+      d.querySelectorAll('[data-crop]').forEach((b) => { b.onclick = () => { st.z = b.dataset.crop === 'fit' ? minZ : 1; st.x = 0; st.y = 0; paint(); }; });
+      const pts = new Map();
+      let pinch = 0;
+      canvas.addEventListener('pointerdown', (e) => { canvas.setPointerCapture(e.pointerId); pts.set(e.pointerId, [e.clientX, e.clientY]); });
+      canvas.addEventListener('pointermove', (e) => {
+        const p = pts.get(e.pointerId);
+        if (!p) return;
+        if (pts.size === 1) { st.x += e.clientX - p[0]; st.y += e.clientY - p[1]; }
+        pts.set(e.pointerId, [e.clientX, e.clientY]);
+        if (pts.size === 2) {
+          const [a, b] = [...pts.values()];
+          const dist = Math.hypot(a[0] - b[0], a[1] - b[1]);
+          if (pinch) st.z *= dist / pinch;
+          pinch = dist;
+        }
+        paint();
+      });
+      const up = (e) => { pts.delete(e.pointerId); pinch = 0; };
+      canvas.addEventListener('pointerup', up);
+      canvas.addEventListener('pointercancel', up);
+      canvas.addEventListener('wheel', (e) => { e.preventDefault(); st.z *= e.deltaY < 0 ? 1.08 : 1 / 1.08; paint(); }, { passive: false });
+    },
+  });
+  if (v !== 'yes') { bmp.close?.(); return null; }
+  const out = document.createElement('canvas');
+  out.width = OUT;
+  out.height = OUT;
+  draw(out, OUT);
+  bmp.close?.();
+  return { blob: await canvasToBlob(out), state: { ...st } };
 }
 
 function cleanGoogleLink(v) {

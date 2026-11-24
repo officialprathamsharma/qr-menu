@@ -434,3 +434,14 @@ main.view.wide { max-width: 1120px; }
 .p-sec { margin: 22px 2px 2px; font-size: 15px; font-weight: 650; color: var(--muted); display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .p-sec small { font-size: 12.5px; font-weight: 500; color: var(--faint); }
 .p-sec.first { margin-top: 0; }
+/* Logo zoom & crop */
+.crop-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.crop-view { position: relative; width: 260px; height: 260px; border-radius: 14px; overflow: hidden; touch-action: none;
+  background: repeating-conic-gradient(#8883 0% 25%, transparent 0% 50%) 50% / 20px 20px; }
+.crop-view canvas { width: 260px; height: 260px; display: block; cursor: grab; }
+.crop-view canvas:active { cursor: grabbing; }
+.crop-mask { position: absolute; inset: 0; border-radius: 27%; box-shadow: 0 0 0 2px #fff9, 0 0 0 999px #0005; pointer-events: none; }
+.crop-zoom { display: flex; align-items: center; gap: 10px; width: 260px; font-size: 13px; color: var(--muted); }
+.crop-zoom input { flex: 1; accent-color: var(--accent, #d4a373); }
+.crop-btns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+.logo-edit { flex-wrap: wrap; }
