@@ -177,7 +177,7 @@ export function matchDish(d, f, ctx) {
     if (group !== 'drinks') return false; // temperature is about drinks
     if (d.temp !== f.temp) return false;
   }
-  if (f.popular && !(d.tags?.includes('most-loved') || d.badges?.includes('bestseller'))) return false;
+  if (f.popular && !(d.tags?.includes('most-loved') || d.tags?.includes('bestseller') || d.badges?.includes('bestseller'))) return false;
   if (f.veg && !diet.veg) return false;
   if (f.vegan && !diet.vegan) return false;
   if (f.nonveg && diet.veg !== false) return false;

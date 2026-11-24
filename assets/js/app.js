@@ -291,9 +291,36 @@ function socialHtml() {
 const QUICK = [
   { id: 'popular', label: 'Popular', icon: icons.star },
   { id: 'veg', label: 'Veg', icon: '<span class="vnv veg" aria-hidden="true"></span>' },
+  { id: 'nonveg', label: 'Non-veg', icon: '<span class="vnv nonveg" aria-hidden="true"></span>' },
   { id: 'drinks', label: 'Drinks' },
   { id: 'food', label: 'Food' },
 ];
+// Chips that can't be on together: picking one switches the others off.
+const CHIP_CLASH = {
+  veg: ['nonveg', 'drinks'], // Veg means vegetarian food
+  nonveg: ['veg', 'drinks'],
+  drinks: ['food', 'veg', 'nonveg'],
+  food: ['drinks'],
+};
+
+/* Only show a quick filter when it actually narrows this menu: no Drinks chip for a bakery with no drinks, no
+   Food chip for a juice bar, no Veg chip on an all-veg menu, no Non-veg chip without non-veg items. */
+function quickChips() {
+  const all = data.dishes;
+  const count = (f) => all.filter((d) => matchDish(d, f, ctx)).length;
+  const drinks = count({ group: 'drinks' });
+  const food = count({ group: 'food' });
+  const vegFood = count({ veg: true, group: 'food' });
+  const nonveg = count({ nonveg: true });
+  const show = {
+    popular: count({ popular: true }) > 0,
+    veg: vegFood > 0 && vegFood < food,
+    nonveg: nonveg > 0,
+    drinks: drinks > 0 && food > 0,
+    food: drinks > 0 && food > 0,
+  };
+  return QUICK.filter((c) => show[c.id]);
+}
 
 function renderMenu() {
   app.innerHTML = `
@@ -318,7 +345,7 @@ function renderMenu() {
         <button type="button" class="filter-btn" id="open-filters" aria-haspopup="dialog" aria-label="Filters">${icons.sliders}<span class="chip-count" hidden></span></button>
       </form>
       <div class="chips" role="group" aria-label="Quick filters">
-        ${QUICK.map((c) => `<button type="button" class="chip" data-chip="${c.id}" aria-pressed="false">${c.icon || ''}${c.label}</button>`).join('')}
+        ${quickChips().map((c) => `<button type="button" class="chip" data-chip="${c.id}" aria-pressed="false">${c.icon || ''}${c.label}</button>`).join('')}
       </div>
     </div>
     <main id="feed" class="feed" aria-live="polite"></main>
@@ -356,10 +383,7 @@ function renderMenu() {
     if (state.chips.has(id)) state.chips.delete(id);
     else {
       state.chips.add(id);
-      // Veg means vegetarian FOOD, so it can't be combined with Drinks.
-      if (id === 'drinks') { state.chips.delete('food'); state.chips.delete('veg'); }
-      if (id === 'food') state.chips.delete('drinks');
-      if (id === 'veg') state.chips.delete('drinks');
+      for (const other of CHIP_CLASH[id] || []) state.chips.delete(other);
     }
     syncChips();
     renderFeed(true);
@@ -398,6 +422,7 @@ function currentFilters() {
   const chipF = {};
   if (state.chips.has('popular')) chipF.popular = true;
   if (state.chips.has('veg')) { chipF.veg = true; chipF.group = 'food'; }
+  if (state.chips.has('nonveg')) chipF.nonveg = true;
   if (state.chips.has('drinks')) chipF.group = 'drinks';
   if (state.chips.has('food')) chipF.group = 'food';
   return { parsed, filters: mergeFilters(chipF, state.sheetFilters, parsed.filters) };
@@ -692,7 +717,7 @@ function renderResults(feed, parsed, filters) {
   const SHEET_LABELS = { veg: 'Veg', vegan: 'Vegan', noEgg: 'No egg', nonveg: 'Non-veg', noDairy: 'No dairy', noGluten: 'No gluten',
     noNuts: 'No nuts', noCoffee: 'No coffee', quick: 'Ready in ≤10 min', notSpicy: 'Not spicy', spicy: 'Spicy', light: 'Light' };
   const understood = [...parsed.labels];
-  const chipLabels = { popular: 'Popular', veg: 'Veg', drinks: 'Drinks', food: 'Food' };
+  const chipLabels = { popular: 'Popular', veg: 'Veg', nonveg: 'Non-veg', drinks: 'Drinks', food: 'Food' };
   for (const c of state.chips) if (!understood.includes(chipLabels[c])) understood.push(chipLabels[c]);
   for (const [k, v] of Object.entries(state.sheetFilters)) {
     if (!v) continue;
