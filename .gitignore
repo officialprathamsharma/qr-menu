@@ -10,3 +10,7 @@ skills-lock.json
 shots/
 media/
 site/
+
+# Internal plans (kept out of the published site)
+plans/
+videos-in/

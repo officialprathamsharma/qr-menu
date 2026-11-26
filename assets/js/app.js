@@ -1009,7 +1009,11 @@ function observeVideos(root) {
       media.classList.remove('playing', 'buffering');
     });
     v.addEventListener('waiting', () => media.classList.add('buffering'));
-    v.addEventListener('error', () => failVideo(v));
+    v.addEventListener('error', () => {
+      // A dropped connection is worth another try; a file the phone can't decode is not.
+      if (v.error?.code === MediaError.MEDIA_ERR_NETWORK && retryVideo(v)) return;
+      failVideo(v);
+    });
     v.addEventListener('loadedmetadata', () => {
       // Upright clips (shot on a phone) get a taller card and fill it, trimmed a little top and bottom.
       if (v.videoHeight > v.videoWidth * 1.05) {
@@ -1028,6 +1032,22 @@ function prepare(v) {
     v.src = v.dataset.src;
     v.preload = 'metadata';
   }
+}
+
+/* Network trouble: show the photo meanwhile and reload the clip a little later (a few times at most). */
+function retryVideo(v) {
+  const tries = Number(v.dataset.retries || 0);
+  if (tries >= 3 || !v.dataset.src) return false;
+  v.dataset.retries = String(tries + 1);
+  clearTimeout(timers.get(v));
+  v.parentElement?.classList.remove('buffering', 'playing');
+  setTimeout(() => {
+    if (!v.isConnected) return;
+    v.src = v.dataset.src;
+    v.load();
+    if (state.active === v) { v.muted = true; v.play()?.catch(() => {}); }
+  }, 2000 * (tries + 1));
+  return true;
 }
 
 function failVideo(v) {
@@ -1103,10 +1123,14 @@ function play(v) {
   if (!v.paused) return;
   v.parentElement.classList.add('buffering');
   clearTimeout(timers.get(v));
-  timers.set(v, setTimeout(() => { if (v.readyState < 3) failVideo(v); }, 8000));
+  // Slow connection: after 8 s stop the spinner and show the photo, but keep loading. The clip takes over
+  // by itself once it can play (the 'playing' event), so a slow first load never hides it for the whole visit.
+  timers.set(v, setTimeout(() => { if (v.readyState < 3) v.parentElement.classList.remove('buffering'); }, 8000));
   v.play()?.catch((err) => {
-    if (err?.name === 'NotAllowedError') { v.parentElement.classList.remove('buffering'); return; }
-    failVideo(v);
+    v.parentElement.classList.remove('buffering');
+    // Not allowed (power saving) or interrupted (the guest scrolled on, or the clip was paused) are not failures.
+    if (err?.name === 'NotAllowedError' || err?.name === 'AbortError') return;
+    if (err?.name === 'NotSupportedError' && v.error?.code !== MediaError.MEDIA_ERR_NETWORK) failVideo(v);
   });
 }
 
@@ -1234,6 +1258,13 @@ function openDish(id, replace = false) {
     v.addEventListener('playing', () => { media.classList.add('playing'); media.classList.remove('buffering'); });
     v.addEventListener('waiting', () => media.classList.add('buffering'));
     v.addEventListener('error', () => {
+      // One quiet retry for a dropped connection before falling back to the photo.
+      if (v.error?.code === MediaError.MEDIA_ERR_NETWORK && !v.dataset.retried) {
+        v.dataset.retried = '1';
+        media.classList.remove('buffering');
+        setTimeout(() => { if (v.isConnected) { v.load(); v.play()?.catch(() => {}); } }, 2000);
+        return;
+      }
       failedVideos.add(d.video);
       v.remove();
       $('.vspin', media)?.remove();
