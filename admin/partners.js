@@ -7,6 +7,7 @@
    ========================================================== */
 import { openDialog, confirmDialog } from './dialog.js';
 import { loadQrLib, qrSvg } from './ops.js';
+import { CONFIG } from '../assets/js/config.js';
 
 const $ = (s, el = document) => el.querySelector(s);
 const esc = (s) =>
@@ -33,6 +34,7 @@ function ago(ts) {
 }
 
 function status(p) {
+  if (p.archived_at) return ['paused', `Archived ${ago(p.archived_at)} · menu & QR off`];
   if (p.suspended) return ['paused', 'Paused · menu & QR off'];
   if (!p.published) return ['draft', 'Menu not published'];
   if (p.owner_last_sign_in) return ['live', 'Live · owner active'];
@@ -68,12 +70,13 @@ async function load() {
   }
   list = data || [];
   try { await loadQrLib(); } catch { /* QR thumbnails stay empty; the dialog shows the error */ }
-  const live = list.filter((p) => p.published && !p.suspended).length;
-  const paused = list.filter((p) => p.suspended).length;
-  const active = list.filter((p) => p.owner_last_sign_in).length;
+  const current = list.filter((p) => !p.archived_at);
+  const live = current.filter((p) => p.published && !p.suspended).length;
+  const paused = current.filter((p) => p.suspended).length;
+  const active = current.filter((p) => p.owner_last_sign_in).length;
   view.innerHTML = `
     <div class="p-kpis">
-      <div class="kpi"><span>Active restaurants</span><b>${list.length - paused}</b></div>
+      <div class="kpi"><span>Active restaurants</span><b>${current.length - paused}</b></div>
       <div class="kpi"><span>Menus live</span><b>${live}</b></div>
       <div class="kpi"><span>Owners signed in</span><b>${active}</b></div>
       <div class="kpi"><span>Paused</span><b>${paused}</b></div>
@@ -89,13 +92,16 @@ function drawList(q) {
   const needle = q.trim().toLowerCase();
   const rows = list.filter((p) => !needle || [p.name, p.slug, p.owner_email, p.owner_phone, p.city].some((v) => String(v || '').toLowerCase().includes(needle)));
   if (!rows.length) { el.innerHTML = `<p class="empty-note">${list.length ? 'No match.' : 'No restaurants yet. Use “Add restaurant”.'}</p>`; return; }
-  // Paused restaurants live in their own section below the active ones.
-  const activeRows = rows.filter((p) => !p.suspended);
-  const pausedRows = rows.filter((p) => p.suspended);
+  // Paused, then archived restaurants live in their own sections below the active ones.
+  const activeRows = rows.filter((p) => !p.suspended && !p.archived_at);
+  const pausedRows = rows.filter((p) => p.suspended && !p.archived_at);
+  const archivedRows = rows.filter((p) => p.archived_at);
+  const split = pausedRows.length || archivedRows.length;
   el.innerHTML = `
-    ${pausedRows.length ? `<h2 class="p-sec first">Active <small>${activeRows.length}</small></h2>` : ''}
+    ${split ? `<h2 class="p-sec first">Active <small>${activeRows.length}</small></h2>` : ''}
     ${activeRows.length ? activeRows.map(card).join('') : '<p class="empty-note">No active restaurants match.</p>'}
-    ${pausedRows.length ? `<h2 class="p-sec">Paused <small>${pausedRows.length} · menu link and QR codes are off</small></h2>${pausedRows.map(card).join('')}` : ''}`;
+    ${pausedRows.length ? `<h2 class="p-sec">Paused <small>${pausedRows.length} · menu link and QR codes are off</small></h2>${pausedRows.map(card).join('')}` : ''}
+    ${archivedRows.length ? `<h2 class="p-sec">Archived <small>${archivedRows.length} · menu link and QR codes are off · restore or delete for good</small></h2>${archivedRows.map(card).join('')}` : ''}`;
   el.onclick = onListClick;
 }
 
@@ -105,7 +111,7 @@ function card(p) {
     let qr = '';
     try { qr = window.qrcode ? qrSvg(url, 92) : ''; } catch { /* ignore */ }
     return `
-    <article class="p-card${p.suspended ? ' is-paused' : ''}" data-slug="${esc(p.slug)}">
+    <article class="p-card${p.suspended || p.archived_at ? ' is-paused' : ''}${p.archived_at ? ' is-archived' : ''}" data-slug="${esc(p.slug)}">
       <button class="p-qr" data-act="qr" aria-label="Main QR code for ${esc(p.name)}">${qr}</button>
       <div class="p-main">
         <div class="p-head"><h3>${esc(p.name)}</h3><span class="pill ${tone}">${label}</span></div>
@@ -115,12 +121,16 @@ function card(p) {
         <p class="p-meta">${p.owner_email ? esc(p.owner_email) : '<i>no owner email</i>'}${p.owner_phone ? ` · ${esc(p.owner_phone)}` : ''}${p.city ? ` · ${esc(p.city)}` : ''}
           · owner last signed in ${ago(p.owner_last_sign_in)}${p.invited_at ? ` · invited ${ago(p.invited_at)}` : ''}</p>
       </div>
-      <div class="p-actions">
+      <div class="p-actions">${p.archived_at ? `
+        <button class="btn sm" data-act="restore">Restore</button>
+        <button class="btn ghost sm" data-act="details">Details</button>
+        <button class="btn danger sm" data-act="delete">Delete for good</button>` : `
         <button class="btn sm" data-act="edit">Edit menu</button>
         <button class="btn ghost sm" data-act="qr">QR code</button>
         <button class="btn ghost sm" data-act="invite">${p.invited_at ? 'Resend welcome email' : 'Send welcome email'}</button>
         <button class="btn ghost sm" data-act="details">Details</button>
         <button class="btn ${p.suspended ? 'sm' : 'danger sm'}" data-act="pause">${p.suspended ? 'Resume menu' : 'Pause menu'}</button>
+        <button class="btn ghost sm" data-act="archive">Archive</button>`}
       </div>
     </article>`;
 }
@@ -136,6 +146,97 @@ async function onListClick(e) {
     if (act === 'invite') invite(p);
     if (act === 'details') details(p);
     if (act === 'pause') setPaused(p, !p.suspended);
+    if (act === 'archive') archive(p);
+    if (act === 'restore') restore(p);
+    if (act === 'delete') removeForGood(p);
+}
+
+const needsSql = (msg) => /archived_at|admin_delete_restaurant/.test(msg || '');
+
+/* ---------- Archive: off the active list, menu and QR codes off, nothing deleted yet ---------- */
+async function archive(p) {
+  const ok = await confirmDialog({
+    title: `Archive ${p.name}?`,
+    body: `It moves to <b>Archived</b> at the bottom of this list. Its menu link and every QR code show “Menu unavailable”, and table ordering stops.
+      Nothing is deleted: you can restore it, or delete it for good from the Archived section.`,
+    confirm: 'Archive',
+    danger: true,
+  });
+  if (!ok) return;
+  const { error, count } = await ctx.sb.from('menus').update({ archived_at: new Date().toISOString() }, { count: 'exact' }).eq('slug', p.slug);
+  if (error || count === 0) {
+    const msg = error?.message || 'not allowed';
+    ctx.toast(needsSql(msg) ? 'Run supabase/archive.sql in Supabase first.' : `Couldn't archive: ${msg}`, true);
+    return;
+  }
+  ctx.toast(`${p.name} is archived. Its menu and QR codes now show “Menu unavailable”.`);
+  load();
+}
+
+async function restore(p) {
+  const ok = await confirmDialog({
+    title: `Restore ${p.name}?`,
+    body: `It goes back to the active list, and its menu link, all QR codes and table ordering (if switched on) work again right away.`,
+    confirm: 'Restore',
+  });
+  if (!ok) return;
+  const { error, count } = await ctx.sb.from('menus').update({ archived_at: null, suspended: false }, { count: 'exact' }).eq('slug', p.slug);
+  if (error || count === 0) { ctx.toast(`Couldn't restore: ${error?.message || 'not allowed'}`, true); return; }
+  ctx.toast(`${p.name} is live again.`);
+  load();
+}
+
+/* ---------- Delete for good (archived only): menu, details, orders, photos and videos ---------- */
+async function removeForGood(p) {
+  const v = await openDialog({
+    title: `Delete ${p.name} for good?`,
+    body: `<p>This permanently deletes the menu, its photos and videos, partner details and every order. It can't be undone.
+      The owner's login stays, but has no restaurant any more.</p>
+      <label class="field">Type <b>${esc(p.slug)}</b> to confirm<input class="input" name="confirm" autocomplete="off" spellcheck="false"></label>
+      <p class="error" id="dlg-err" role="alert"></p>`,
+    buttons: [{ label: 'Cancel', value: 'no', kind: 'ghost' }, {
+      label: 'Delete for good', value: 'yes', kind: 'danger', submit: true,
+      check: (d) => {
+        const ok = d.querySelector('[name=confirm]').value.trim().toLowerCase() === p.slug;
+        if (!ok) $('#dlg-err', d).textContent = `Type ${p.slug} exactly.`;
+        return ok;
+      },
+    }],
+    onOpen: (d) => d.querySelector('[name=confirm]').focus(),
+  });
+  if (v !== 'yes') return;
+  ctx.toast(`Deleting ${p.name}…`);
+  let mediaErr = '';
+  try { await deleteMedia(p.slug); } catch (e) { mediaErr = e.message || String(e); }
+  const { error } = await ctx.sb.rpc('admin_delete_restaurant', { p_slug: p.slug });
+  if (error) {
+    ctx.toast(needsSql(error.message) ? 'Run supabase/archive.sql in Supabase first.' : `Couldn't delete: ${error.message}`, true);
+    return;
+  }
+  ctx.toast(mediaErr ? `${p.name} is deleted, but some files couldn't be removed: ${mediaErr}` : `${p.name} is deleted.`, Boolean(mediaErr));
+  load();
+}
+
+/** Remove every file under <slug>/ in the media bucket (folders are listed one level at a time). */
+async function deleteMedia(slug) {
+  const bucket = ctx.sb.storage.from(CONFIG.mediaBucket);
+  const files = [];
+  const walk = async (dir) => {
+    for (let offset = 0; ; offset += 1000) {
+      const { data, error } = await bucket.list(dir, { limit: 1000, offset });
+      if (error) throw error;
+      for (const f of data || []) {
+        if (f.id) files.push(`${dir}/${f.name}`);
+        else await walk(`${dir}/${f.name}`); // a folder
+      }
+      if (!data || data.length < 1000) break;
+    }
+  };
+  await walk(slug);
+  for (let i = 0; i < files.length; i += 100) {
+    const { error } = await bucket.remove(files.slice(i, i + 100));
+    if (error) throw error;
+  }
 }
 
 /* ---------- Pause / resume (e.g. unpaid): the link and every QR code stop working ---------- */

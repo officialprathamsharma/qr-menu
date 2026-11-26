@@ -65,13 +65,14 @@ export async function loadMenu(slug, preferred) {
   }
   if (preferred !== 'static' && supabaseEnabled()) {
     const sb = await getSupabase();
-    const { data, error } = await sb.from('menus').select('data').eq('slug', slug).maybeSingle();
+    // Always ask whether the menu is paused or archived: a signed-in owner or admin can still read the row,
+    // but the guest menu must stay off for them too. Never fall back to a bundled copy of a paused menu.
+    const [{ data, error }, { data: paused }] = await Promise.all([
+      sb.from('menus').select('data').eq('slug', slug).maybeSingle(),
+      sb.rpc('menu_suspended', { p_slug: slug }),
+    ]);
+    if (paused === true) { const e = new Error('This menu is paused.'); e.suspended = true; throw e; }
     if (!error && data?.data && Object.keys(data.data).length) return { data: data.data, source: 'supabase' };
-    // A paused menu is hidden from guests; never fall back to a bundled copy of it.
-    if (!error && !data) {
-      const { data: paused } = await sb.rpc('menu_suspended', { p_slug: slug });
-      if (paused === true) { const e = new Error('This menu is paused.'); e.suspended = true; throw e; }
-    }
   }
   return { data: await loadStatic(slug), source: 'static' };
 }

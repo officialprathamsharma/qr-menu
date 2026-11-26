@@ -158,7 +158,7 @@ async function boot() {
       setPartnerCtx(adminCtx);
       if (!params.has('r')) return renderPartners(adminCtx);
       const { data: row, error } = await sb.from('menus').select('*').eq('slug', slug).maybeSingle();
-      menuPaused = Boolean(row?.suspended);
+      menuPaused = row?.archived_at ? 'archived' : row?.suspended ? 'paused' : '';
       if (error) return fatal(`Couldn't load that restaurant: ${error.message}`);
       if (!row) return fatal(`There's no restaurant with the link name "${slug}".`, true);
       adminEditing = row.owner_id !== session.user.id;
@@ -184,7 +184,7 @@ async function boot() {
     if (!rows?.length) return fatal('This account is not linked to a restaurant yet. Please contact NomNom at contact@heynomnom.in.', true);
     slug = rows.find((r) => r.slug === slug)?.slug || rows[0].slug;
     const { data: row } = await sb.from('menus').select('*').eq('slug', slug).single();
-    menuPaused = Boolean(row?.suspended);
+    menuPaused = row?.archived_at ? 'archived' : row?.suspended ? 'paused' : '';
     menu = row?.data && Object.keys(row.data).length ? row.data : null;
     if (!menu) return renderStart();
   } else {
@@ -359,7 +359,7 @@ function renderApp() {
       ${[['orders', 'Orders'], ['items', 'Items'], ['categories', 'Categories'], ['branding', 'Branding'], ['insights', 'Insights'], ['tables', 'Tables & QR']]
         .map(([id, l]) => `<button class="tab" role="tab" data-view="${id}" aria-selected="${view === id}">${l}</button>`).join('')}
     </nav>
-    ${menuPaused ? `<div class="admin-strip paused" role="note">${adminEditing ? 'This menu is <b>paused</b>: guests see “Menu unavailable”. Resume it from Partners.' : 'Your menu is <b>paused</b>, so guests see “Menu unavailable”. Please contact NomNom at <a href="mailto:contact@heynomnom.in">contact@heynomnom.in</a>.'}</div>` : ''}
+    ${menuPaused ? `<div class="admin-strip paused" role="note">${adminEditing ? `This menu is <b>${menuPaused}</b>: guests see “Menu unavailable”. ${menuPaused === 'archived' ? 'Restore' : 'Resume'} it from Partners.` : `Your menu is <b>${menuPaused}</b>, so guests see “Menu unavailable”. Please contact NomNom at <a href="mailto:contact@heynomnom.in">contact@heynomnom.in</a>.`}</div>` : ''}
     ${adminEditing ? `<div class="admin-strip" role="note">Super admin: you're editing <b>${esc(menu.name)}</b>'s menu. Changes go live for their guests when you publish.</div>` : ''}
     <main class="view" id="view"></main>`;
 

@@ -48,6 +48,13 @@ sign in and sees a "paused" banner. Paused restaurants are listed in their own *
 ones. **Resume menu** turns everything back on. Needs
 [`pause-and-cleanup.sql`](pause-and-cleanup.sql) (run once).
 
+**Archive** (on each partner card, e.g. a restaurant that left): it moves to an **Archived** section at the bottom,
+and its menu link, QR codes and ordering are off, as with a pause. From there, **Restore** makes it live again, and
+**Delete for good** (type the link name to confirm) removes the menu, its photos and videos, partner details and
+orders. The owner's login is kept. Needs [`archive.sql`](archive.sql) (run once, after pause-and-cleanup.sql).
+
+Paused and archived menus stay off even in a browser where you're signed in to the dashboard.
+
 Editing a partner's menu always asks first, shows a banner while you edit, and asks again before publishing or
 switching table ordering. Owners still only see their own restaurant.
 
