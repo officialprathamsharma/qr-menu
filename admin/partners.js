@@ -69,6 +69,10 @@ async function load() {
     return;
   }
   list = data || [];
+  // WhatsApp Ordering lives in each menu's data (see supabase/whatsapp-ordering.sql).
+  const { data: wa } = await ctx.sb.from('menus').select('slug, wa:data->whatsappOrdering');
+  const waBySlug = new Map((wa || []).map((r) => [r.slug, r.wa || {}]));
+  list.forEach((p) => { p.wa = waBySlug.get(p.slug) || {}; });
   try { await loadQrLib(); } catch { /* QR thumbnails stay empty; the dialog shows the error */ }
   const current = list.filter((p) => !p.archived_at);
   const live = current.filter((p) => p.published && !p.suspended).length;
@@ -117,9 +121,12 @@ function card(p) {
         <div class="p-head"><h3>${esc(p.name)}</h3><span class="pill ${tone}">${label}</span></div>
         <p class="p-link"><a href="${esc(url)}" target="_blank" rel="noopener">${esc(url.replace(/^https?:\/\//, ''))}</a>
           <button class="link-btn" data-act="copy">Copy</button></p>
-        <p class="p-meta">${p.items} dishes · ${p.videos} videos · ${p.photos} photos · ordering ${p.ordering ? 'on' : 'off'} · updated ${ago(p.updated_at)}</p>
+        <p class="p-meta">${p.items} dishes · ${p.videos} videos · ${p.photos} photos · table ordering ${p.ordering ? 'on' : 'off'} · updated ${ago(p.updated_at)}</p>
         <p class="p-meta">${p.owner_email ? esc(p.owner_email) : '<i>no owner email</i>'}${p.owner_phone ? ` · ${esc(p.owner_phone)}` : ''}${p.city ? ` · ${esc(p.city)}` : ''}
           · owner last signed in ${ago(p.owner_last_sign_in)}${p.invited_at ? ` · invited ${ago(p.invited_at)}` : ''}</p>
+        ${p.archived_at ? '' : `<label class="p-wa" title="Guests add dishes to a cart, enter name, phone and address, and send the order to the restaurant on WhatsApp.">
+          <input type="checkbox" role="switch" data-act="wa" ${p.wa.enabled ? 'checked' : ''}>
+          <span><b>WhatsApp Ordering ${p.wa.enabled ? 'on' : 'off'}</b>${p.wa.enabled ? ` <small>orders go to ${esc(p.wa.phone || 'no number yet: add it in the menu’s Orders tab')}</small>` : ''}</span></label>`}
       </div>
       <div class="p-actions">${p.archived_at ? `
         <button class="btn sm" data-act="restore">Restore</button>
@@ -149,6 +156,41 @@ async function onListClick(e) {
     if (act === 'archive') archive(p);
     if (act === 'restore') restore(p);
     if (act === 'delete') removeForGood(p);
+    if (act === 'wa') setWhatsapp(p, b.checked, b);
+}
+
+/* ---------- WhatsApp Ordering (e.g. cloud kitchens): guests send their cart to the restaurant on WhatsApp ---------- */
+const waDigits = (phone) => String(phone || '').replace(/\D/g, '').replace(/^0+/, '').replace(/^(?=\d{10}$)/, '91');
+async function setWhatsapp(p, on, input) {
+  const phone = p.wa.phone || (p.owner_phone ? waDigits(p.owner_phone) : '');
+  const ok = await confirmDialog({
+    title: `Turn WhatsApp Ordering ${on ? 'on' : 'off'} for ${p.name}?`,
+    body: on
+      ? `Guests on <b>${esc(p.name)}</b>'s menu can add dishes to a cart, enter their name, phone and address, and send the order on WhatsApp
+        to <b>${esc(phone ? `+${phone}` : 'the restaurant')}</b>. At checkout they can also see the restaurant's UPI payment QR.
+        ${phone ? '' : '<br><br>There\'s no WhatsApp number yet: add it in the menu\'s <b>Orders</b> tab (or the owner\'s phone in Details) before guests can order.'}
+        ${p.wa.phone ? '' : p.owner_phone ? `<br><br>Orders go to the owner's phone from Details. The owner can change it in their <b>Orders</b> tab, and add a UPI ID or payment QR.` : ''}`
+      : `Guests on <b>${esc(p.name)}</b>'s menu won't be able to order on WhatsApp any more. Their number, UPI ID and QR are kept.`,
+    confirm: on ? 'Turn on' : 'Turn off',
+  });
+  if (!ok) { input.checked = !on; return; }
+  input.disabled = true;
+  const { data: row, error } = await ctx.sb.from('menus').select('data').eq('slug', p.slug).single();
+  if (!error && !(row?.data && Object.keys(row.data).length)) {
+    input.checked = !on; input.disabled = false;
+    ctx.toast('Publish the menu first, then turn on WhatsApp Ordering.', true);
+    return;
+  }
+  const next = row?.data ? { ...row.data, whatsappOrdering: { ...(row.data.whatsappOrdering || {}), enabled: on, ...(on && !row.data.whatsappOrdering?.phone && phone ? { phone } : {}) } } : null;
+  const res = error ? { error } : await ctx.sb.from('menus').update({ data: next }, { count: 'exact' }).eq('slug', p.slug);
+  input.disabled = false;
+  if (res.error || res.count === 0) {
+    input.checked = !on;
+    ctx.toast(`Couldn't change WhatsApp Ordering: ${res.error?.message || 'not allowed'}`, true);
+    return;
+  }
+  ctx.toast(on ? `WhatsApp Ordering is ON for ${p.name}.` : `WhatsApp Ordering is OFF for ${p.name}.`);
+  load();
 }
 
 const needsSql = (msg) => /archived_at|admin_delete_restaurant/.test(msg || '');
@@ -320,7 +362,7 @@ export async function invite(p, { afterPublish = false } = {}) {
   const ok = await confirmDialog({
     title: afterPublish ? 'Menu is live. Email the owner?' : `${p.invited_at ? 'Resend' : 'Send'} the welcome email?`,
     body: `NomNom will email <b>${esc(p.owner_email)}</b> from info@heynomnom.in with a link to set their password and manage
-      <b>${esc(p.name)}</b>'s menu. Their menu link: ${esc(menuUrl(p.slug))}`,
+      <b>${esc(p.name)}</b>'s menu. The link works for 7 days.${p.invited_at ? ' Any earlier link stops working.' : ''} Their menu link: ${esc(menuUrl(p.slug))}`,
     confirm: 'Send email',
     cancel: afterPublish ? 'Not now' : 'Cancel',
   });
@@ -329,10 +371,23 @@ export async function invite(p, { afterPublish = false } = {}) {
   let msg = error?.message;
   if (error?.context?.json) { try { msg = (await error.context.json()).error || msg; } catch { /* keep msg */ } }
   if (error) { ctx.toast(`Couldn't send the email: ${msg}`, true); return false; }
-  ctx.toast(data.status === 'linked'
-    ? `${p.owner_email} already had a login. Linked it to ${p.name} and sent a password-reset email.`
-    : `Welcome email sent to ${p.owner_email}.`);
   if ($('#p-list')) load();
+  if (data.welcome_url) {
+    // Also hand the link over, so it can go on WhatsApp too.
+    const wa = p.owner_phone ? `https://wa.me/${String(p.owner_phone).replace(/\D/g, '').replace(/^0+/, '').replace(/^(?=\d{10}$)/, '91')}?text=${encodeURIComponent(`Hi! Your NomNom dashboard for ${p.name} is ready. Set your password here (link works until ${data.expires}): ${data.welcome_url}`)}` : '';
+    const v = await openDialog({
+      title: data.email_sent === false ? 'New welcome link ready' : 'Welcome email sent',
+      body: `<p>${data.email_sent === false ? `An email went to ${esc(p.owner_email)} less than a minute ago, so no new email was sent. Send this new link yourself (it replaces the earlier one).` : data.status === 'linked' ? `${esc(p.owner_email)} already had a login, so it's now linked to <b>${esc(p.name)}</b>.` : `Sent to <b>${esc(p.owner_email)}</b>.`}
+        The link in it works for 7 days, until <b>${esc(data.expires)}</b>. Any earlier welcome link for ${esc(p.name)} no longer works.</p>
+        <p class="hint" style="margin-top:10px">You can also send the same link yourself:</p>
+        <input class="input" readonly value="${esc(data.welcome_url)}" style="width:100%;margin-top:6px;font-size:13px" onclick="this.select()">`,
+      buttons: [{ label: 'Close', value: 'close', kind: 'ghost' }, ...(wa ? [{ label: 'Send on WhatsApp', value: 'wa', kind: 'ghost' }] : []), { label: 'Copy link', value: 'copy' }],
+    });
+    if (v === 'copy') { await navigator.clipboard.writeText(data.welcome_url).catch(() => {}); ctx.toast('Welcome link copied.'); }
+    if (v === 'wa') window.open(wa, '_blank', 'noopener');
+  } else {
+    ctx.toast(`Welcome email sent to ${p.owner_email}.`);
+  }
   return true;
 }
 

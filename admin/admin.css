@@ -446,3 +446,13 @@ main.view.wide { max-width: 1120px; }
 .crop-zoom input { flex: 1; accent-color: var(--accent, #d4a373); }
 .crop-btns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 .logo-edit { flex-wrap: wrap; }
+
+/* WhatsApp Ordering: Partners switch + Orders-tab settings */
+.p-wa { display: inline-flex; align-items: center; gap: 8px; margin-top: 6px; font-size: var(--fs-xs); cursor: pointer; }
+.p-wa input { width: 34px; height: 18px; accent-color: #25d366; }
+.p-wa small { color: var(--muted); font-weight: 400; }
+.wa-panel { margin: 12px 0; }
+.wa-panel h3 { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.wa-panel h3 small { color: var(--faint); font-weight: 400; font-size: var(--fs-xs); }
+.wa-qr-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.wa-qr-img { width: 64px; height: 64px; object-fit: contain; border: 1px solid var(--line); border-radius: 8px; background: #fff; }

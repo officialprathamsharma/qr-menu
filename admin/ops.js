@@ -3,6 +3,8 @@
    Orders and Insights need the pilot backend (Supabase). Tables & QR works in both modes.
    ========================================================== */
 
+import { uploadMedia, resolveMedia } from '../assets/js/store.js';
+
 const QR_LIB = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js';
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -144,6 +146,62 @@ async function setPunched(id, punched) {
   changed();
 }
 
+/* ---------- WhatsApp Ordering settings (NomNom turns it on in Partners; the owner fills these in) ---------- */
+const UPI_RE = /^[\w.\-]{2,}@[a-zA-Z][\w.\-]*$/;
+function waPanel(m) {
+  const w = m.whatsappOrdering;
+  return `
+    <section class="panel wa-panel">
+      <h3>WhatsApp Ordering <span class="pill live">On</span> <small>turned on by NomNom</small></h3>
+      <p class="hint">Guests add dishes to their cart, enter their name, phone and delivery address, and the order opens in WhatsApp
+        addressed to the number below. At checkout they can pay with your UPI QR. Saved with <b>Save &amp; publish</b>.</p>
+      <div class="row2">
+        <label class="field">WhatsApp number for orders <small>with country code, e.g. 91 98765 43210</small>
+          <input class="input" id="wa-phone" type="tel" inputmode="tel" value="${esc(w.phone || '')}" autocomplete="off" placeholder="91 98765 43210"></label>
+        <label class="field">UPI ID <small>guests get a QR with the order amount filled in</small>
+          <input class="input" id="wa-upi" value="${esc(w.upi || '')}" autocomplete="off" spellcheck="false" placeholder="yourcafe@okhdfcbank"></label>
+      </div>
+      <div class="row2">
+        <label class="field">Note for guests <small>optional, shown at checkout</small>
+          <input class="input" id="wa-note" maxlength="160" value="${esc(w.note || '')}" placeholder="Delivery in 30–45 min within 5 km. Free delivery above ₹500."></label>
+        <div class="field">Payment QR image <small>optional, e.g. your shop's printed QR</small>
+          <div class="wa-qr-row">
+            ${w.qr ? `<img class="wa-qr-img" src="${esc(w.qr)}" alt="Payment QR">` : ''}
+            <label class="btn ghost sm">${w.qr ? 'Replace' : 'Upload'}<input type="file" id="wa-qr" accept="image/*" class="sr-only"></label>
+            ${w.qr ? '<button class="btn ghost sm" id="wa-qr-rm">Remove</button>' : ''}
+          </div></div>
+      </div>
+      <p class="error" id="wa-err" role="alert"></p>
+    </section>`;
+}
+function wireWaPanel(el, m) {
+  const w = m.whatsappOrdering;
+  const err = $('#wa-err', el);
+  const check = () => {
+    const digits = (w.phone || '').replace(/\D/g, '');
+    err.textContent = !digits ? 'Add the WhatsApp number: guests can\'t order without it.'
+      : digits.length < 10 ? 'That WhatsApp number looks too short.'
+      : w.upi && !UPI_RE.test(w.upi) ? 'That UPI ID doesn\'t look right (it looks like name@bank).' : '';
+  };
+  const bind = (id, key) => $(id, el).addEventListener('input', (e) => { w[key] = e.target.value.trim(); check(); ctx.setDirty(true); });
+  bind('#wa-phone', 'phone'); bind('#wa-upi', 'upi'); bind('#wa-note', 'note');
+  check();
+  $('#wa-qr', el).onchange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 5e6) { ctx.toast('That image is over 5 MB. Use a smaller screenshot of the QR.', true); return; }
+    ctx.toast('Uploading the QR…');
+    try {
+      w.qr = await uploadMedia(ctx.slug, file, 'brand', ctx.mode === 'live' ? 'supabase' : 'local');
+      ctx.setDirty(true);
+      renderOrders(el);
+    } catch (x) { ctx.toast(`Couldn't upload: ${x.message || x}`, true); }
+  };
+  $('#wa-qr-rm', el)?.addEventListener('click', () => { delete w.qr; ctx.setDirty(true); renderOrders(el); });
+  const img = $('.wa-qr-img', el);
+  if (img && w.qr?.startsWith('idb:')) resolveMedia(w.qr).then((u) => { img.src = u; }).catch(() => {});
+}
+
 /* ---------- Orders view ---------- */
 export function renderOrders(el) {
   const m = ctx.menu();
@@ -167,6 +225,7 @@ export function renderOrders(el) {
       ${'wakeLock' in navigator ? `<button class="btn ghost sm" id="ord-awake">${pref.get('awake') === 'on' ? 'Screen stays on' : 'Keep screen on'}</button>` : ''}
       <button class="btn ghost sm" id="ord-export">Export today (CSV)</button>
     </div>
+    ${m.whatsappOrdering?.enabled ? waPanel(m) : ''}
     ${unpunched ? `<p class="banner punch-note"><strong>${unpunched} order${unpunched === 1 ? '' : 's'} not yet entered in your POS.</strong> Tick "Entered in POS" after punching each one in Petpooja.</p>` : ''}
     <div class="board">
       ${[['new', 'New'], ['accepted', 'Preparing'], ['ready', 'Ready to serve']].map(([s, l]) => `
@@ -179,6 +238,7 @@ export function renderOrders(el) {
     </details>`;
 
   $('#ord-enabled', el).onchange = (e) => ctx.setOrdering(e.target.checked);
+  if (m.whatsappOrdering?.enabled) wireWaPanel(el, m);
   $('#ord-sound', el).onclick = () => {
     pref.set('sound', pref.get('sound') === 'off' ? 'on' : 'off');
     unlockAudio();

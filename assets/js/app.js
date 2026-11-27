@@ -67,6 +67,7 @@ const icons = {
   check: svg('<path d="m5 12 5 5 9-10"/>'),
   copy: svg('<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>'),
   list: svg('<path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01" stroke-width="2.2"/>'),
+  whatsapp: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6.5-.1 1.5-.6 1.8-1.2.2-.6.2-1.1.1-1.2l-.5-.3z"/></svg>',
   star: svg('<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z" fill="currentColor" stroke="none"/>'),
 };
 
@@ -1129,9 +1130,25 @@ function play(v) {
   v.play()?.catch((err) => {
     v.parentElement.classList.remove('buffering');
     // Not allowed (power saving) or interrupted (the guest scrolled on, or the clip was paused) are not failures.
-    if (err?.name === 'NotAllowedError' || err?.name === 'AbortError') return;
+    if (err?.name === 'NotAllowedError') { waitForGesture(); return; }
+    if (err?.name === 'AbortError') return;
     if (err?.name === 'NotSupportedError' && v.error?.code !== MediaError.MEDIA_ERR_NETWORK) failVideo(v);
   });
+}
+
+/* Low Power Mode (iPhone) and some battery savers block autoplay until the guest touches the page. Show the photo
+   meanwhile, and on the first touch or scroll gesture anywhere, start the clip in view again. */
+let gestureArmed = false;
+function waitForGesture() {
+  if (gestureArmed) return;
+  gestureArmed = true;
+  const retry = () => {
+    gestureArmed = false;
+    ['pointerdown', 'touchend', 'keydown'].forEach((e) => removeEventListener(e, retry, true));
+    const v = state.active;
+    if (v && v.paused) { v.muted = true; v.play()?.catch(() => {}); } else pickActive();
+  };
+  ['pointerdown', 'touchend', 'keydown'].forEach((e) => addEventListener(e, retry, { capture: true, passive: true }));
 }
 
 document.addEventListener('visibilitychange', () => {
@@ -1174,7 +1191,7 @@ function closeSheet(fromPop = false) {
   setTimeout(stopSheetVideo, 380);
   if (!fromPop && history.state?.sheet) history.back();
   if (sheet.dataset.kind === 'filters') renderFeed(true);
-  if (sheet.dataset.kind === 'cart') { state.orderNote = $('#order-note')?.value ?? state.orderNote; state.orderTable = $('#order-table')?.value ?? state.orderTable; }
+  if (sheet.dataset.kind === 'cart') { state.orderNote = $('#order-note')?.value ?? state.orderNote; state.orderTable = $('#order-table')?.value ?? state.orderTable; keepGuest(); }
   clearInterval(statusTimer);
   syncCartBar();
   setTimeout(pickActive, 60);
@@ -1193,6 +1210,9 @@ function bindSheet() {
     const add = e.target.closest('[data-add]');
     if (add) return onAddClick(e, add);
     if (e.target.closest('#place-order')) return placeOrder();
+    if (e.target.closest('#wa-send')) return sendWhatsApp();
+    const payPick = e.target.closest('input[name=g-pay]');
+    if (payPick) { guest().pay = payPick.value; const box = $('#sheet .pay-box'); if (box) box.open = payPick.value === 'upi'; return; }
     if (e.target.closest('[data-reorder]')) { closeSheet(); return; }
     const cp = e.target.closest('[data-copy]');
     if (cp) return copyText(cp.dataset.copy, cp);
@@ -1204,7 +1224,10 @@ function bindSheet() {
     }
     onFilterClick(e);
   });
-  sheet.addEventListener('input', onFilterInput);
+  sheet.addEventListener('input', (e) => {
+    if (e.target.closest('.cart.wa')) { const err = $('#order-err'); if (err) err.textContent = ''; }
+    onFilterInput(e);
+  });
   addEventListener('popstate', () => { if (state.sheetOpen) closeSheet(true); });
   addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
 
@@ -1344,7 +1367,14 @@ function dishHtml(d) {
    - After ordering, the guest can follow the status (Received → Preparing → Ready).
    ========================================================== */
 const cart = new Map(); // dishId -> qty
-const canOrder = () => Boolean(data?.ordering?.enabled) && menuSource === 'supabase' && supabaseEnabled();
+const canTableOrder = () => Boolean(data?.ordering?.enabled) && menuSource === 'supabase' && supabaseEnabled();
+// WhatsApp Ordering (e.g. cloud kitchens), switched on by NomNom: the cart is sent to the restaurant on WhatsApp.
+const waCfg = () => data?.whatsappOrdering || {};
+const waPhone = () => String(waCfg().phone || '').replace(/\D/g, '').replace(/^0+/, '').replace(/^(?=\d{10}$)/, '91');
+const canWaOrder = () => Boolean(waCfg().enabled) && waPhone().length >= 11;
+// A table QR (?t=) at a restaurant with table ordering keeps table ordering; everyone else orders on WhatsApp.
+const orderMode = () => (canTableOrder() && (tableNo || !canWaOrder()) ? 'table' : canWaOrder() ? 'wa' : '');
+const canOrder = () => Boolean(orderMode());
 const cartKey = `cart:${slug}`;
 const lastKey = `order:${slug}`;
 const cartCount = () => [...cart.values()].reduce((a, b) => a + b, 0);
@@ -1414,6 +1444,7 @@ function syncCartBar() {
 function cartHtml() {
   const lines = [...cart].map(([id, q]) => ({ d: byId(id), q })).filter((x) => x.d);
   if (!lines.length) return `<div class="sheet-body cart"><h2 id="sheet-title">Your order</h2><p class="muted">Your order is empty. Tap <b>Add</b> on any item.</p></div>`;
+  if (orderMode() === 'wa') return waCartHtml(lines);
   return `
     <div class="sheet-body cart">
       <h2 id="sheet-title">Your order</h2>
@@ -1431,14 +1462,165 @@ function cartHtml() {
     </div>`;
 }
 
-function openCart() { openSheet(cartHtml(), { kind: 'cart' }); }
+function openCart() { openSheet(cartHtml(), { kind: 'cart' }); fillPayQr(); }
 function refreshCartSheet() {
   state.orderNote = $('#order-note')?.value ?? state.orderNote;
   state.orderTable = $('#order-table')?.value ?? state.orderTable;
+  keepGuest();
   const scroll = $('#sheet .sheet-scroll');
   const top = scroll.scrollTop;
   scroll.innerHTML = cartHtml();
   scroll.scrollTop = top;
+  fillPayQr();
+}
+
+/* ---------- WhatsApp Ordering: checkout form → WhatsApp message to the restaurant, optional UPI payment ---------- */
+const guestKey = 'guest'; // name, phone and address, remembered on this phone for next time
+const rupees = (n) => `₹${fmtPrice(n)}`;
+const UPI_OK = /^[\w.\-]{2,}@[a-zA-Z][\w.\-]*$/;
+const hasPay = () => UPI_OK.test(waCfg().upi || '') || Boolean(waCfg().qr);
+function guest() {
+  if (!state.guest) { try { state.guest = JSON.parse(pref.get(guestKey) || '{}'); } catch { state.guest = {}; } }
+  return state.guest;
+}
+function keepGuest() {
+  if (!$('#g-name')) return;
+  const g = guest();
+  g.name = $('#g-name').value; g.phone = $('#g-phone').value; g.address = $('#g-address').value;
+  g.pay = $('input[name=g-pay]:checked')?.value || g.pay;
+  state.orderNote = $('#order-note')?.value ?? state.orderNote;
+  pref.set(guestKey, JSON.stringify({ name: g.name, phone: g.phone, address: g.address }));
+}
+const orderRef = () => (state.orderRef ||= `NN-${Date.now().toString(36).slice(-5).toUpperCase()}`);
+const upiLink = (total) => {
+  const w = waCfg();
+  const q = new URLSearchParams({ pa: w.upi, pn: (data.name || '').slice(0, 40), am: Number(total).toFixed(2), cu: 'INR', tn: `Order ${orderRef()}` });
+  return `upi://pay?${q.toString().replace(/\+/g, '%20')}`;
+};
+
+function payHtml(total, open = false) {
+  if (!hasPay()) return '';
+  const w = waCfg();
+  const upi = UPI_OK.test(w.upi || '');
+  return `
+    <details class="pay-box"${open ? ' open' : ''}>
+      <summary>Show payment QR <small>UPI · ${esc(rupees(total))}</small></summary>
+      <div class="pay-inner">
+        <div class="pay-qr" ${upi ? `data-upi="${esc(upiLink(total))}"` : ''}>${upi ? '' : `<img src="${esc(w.qr)}" alt="${esc(data.name)} payment QR code">`}</div>
+        <p class="muted small">${upi ? `Scan with any UPI app, or pay to <b>${esc(w.upi)}</b>. The amount is filled in.` : `Scan with any UPI app and pay <b>${esc(rupees(total))}</b>.`}</p>
+        <div class="pay-btns">
+          ${upi ? `<a class="btn sm" href="${esc(upiLink(total))}">Pay ${esc(rupees(total))} in a UPI app</a>
+          <button type="button" class="btn ghost sm" data-copy="${esc(w.upi)}">${icons.copy}Copy UPI ID</button>` : ''}
+        </div>
+        <p class="muted small">After paying, send the payment screenshot in the WhatsApp chat.</p>
+      </div>
+    </details>`;
+}
+
+let qrLib;
+async function fillPayQr() {
+  const box = $('#sheet .pay-qr[data-upi]');
+  if (!box || box.firstChild) return;
+  try {
+    qrLib ||= new Promise((res, rej) => {
+      if (window.qrcode) return res();
+      document.head.append(Object.assign(document.createElement('script'), { src: 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js', onload: res, onerror: rej }));
+    });
+    await qrLib;
+    const qr = window.qrcode(0, 'M');
+    qr.addData(box.dataset.upi);
+    qr.make();
+    const n = qr.getModuleCount();
+    let d = '';
+    for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (qr.isDark(r, c)) d += `M${c + 2},${r + 2}h1v1h-1z`;
+    box.innerHTML = `<svg viewBox="0 0 ${n + 4} ${n + 4}" shape-rendering="crispEdges" role="img" aria-label="UPI payment QR code"><rect width="100%" height="100%" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
+  } catch {
+    qrLib = null;
+    box.innerHTML = '<p class="muted small">Couldn\'t load the QR code. Use the button below or the UPI ID.</p>';
+  }
+}
+
+function waCartHtml(lines) {
+  const g = guest();
+  const w = waCfg();
+  const total = cartTotal();
+  const pay = hasPay() ? (g.pay || 'upi') : 'cod';
+  return `
+    <div class="sheet-body cart wa">
+      <h2 id="sheet-title">Your order</h2>
+      <ul class="cart-lines">${lines.map(({ d, q }) => `
+        <li><span class="cl-name">${vegMark(d)}${esc(d.name)}</span>${addControl(d)}<span class="cl-price">${esc(fmtPrice(d.price * q))}</span></li>`).join('')}
+      </ul>
+      <div class="cart-total"><span>Total</span><strong>${esc(fmtPrice(total))}</strong></div>
+      ${w.note ? `<p class="cart-note">${esc(w.note)}</p>` : ''}
+      <h3 class="cart-h">Delivery details</h3>
+      <label class="cart-field">Your name<input id="g-name" autocomplete="name" maxlength="60" value="${esc(g.name || '')}" placeholder="e.g. Riya Sharma"></label>
+      <label class="cart-field">Phone number<input id="g-phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="16" value="${esc(g.phone || '')}" placeholder="10-digit mobile number"></label>
+      <label class="cart-field">Delivery address<textarea id="g-address" rows="3" maxlength="300" autocomplete="street-address" placeholder="Flat / house no., building, street, area, landmark">${esc(g.address || '')}</textarea></label>
+      <label class="cart-field">Notes for the kitchen <small>(optional)</small>
+        <textarea id="order-note" rows="2" maxlength="300" placeholder="Less sugar, no onion, extra hot…">${esc(state.orderNote || '')}</textarea></label>
+      ${hasPay() ? `
+        <fieldset class="pay-choice"><legend>Payment</legend>
+          <label><input type="radio" name="g-pay" value="upi" ${pay === 'upi' ? 'checked' : ''}><span>Pay now by UPI</span></label>
+          <label><input type="radio" name="g-pay" value="cod" ${pay === 'cod' ? 'checked' : ''}><span>Pay on delivery</span></label>
+        </fieldset>
+        ${payHtml(total)}` : ''}
+      <p class="cart-err" id="order-err" role="alert"></p>
+      <button type="button" class="btn place wa-send" id="wa-send">${icons.whatsapp}Send order on WhatsApp · ${esc(fmtPrice(total))}</button>
+      <p class="cart-foot">Opens WhatsApp with your order for ${esc(data.name)}. Tap send there, and they'll confirm your order in the chat.</p>
+    </div>`;
+}
+
+function sendWhatsApp() {
+  keepGuest();
+  const g = guest();
+  const err = $('#order-err');
+  const name = (g.name || '').trim();
+  let digits = (g.phone || '').replace(/\D/g, '').replace(/^0+/, '');
+  if (digits.length === 12 && digits.startsWith('91')) digits = digits.slice(2);
+  const address = (g.address || '').trim();
+  const fail = (msg, id) => { err.textContent = msg; $(id)?.focus(); };
+  if (!name) return fail('Please enter your name.', '#g-name');
+  if (digits.length !== 10) return fail('Please enter a 10-digit phone number.', '#g-phone');
+  if (address.length < 8) return fail('Please enter your full delivery address.', '#g-address');
+  err.textContent = '';
+  const lines = [...cart].map(([id, q]) => ({ d: byId(id), q })).filter((x) => x.d);
+  const total = cartTotal();
+  const pay = hasPay() ? (g.pay || 'upi') : 'cod';
+  const note = ($('#order-note')?.value || '').trim();
+  const ref = orderRef();
+  const text = [
+    `Hi ${data.name}! I'd like to order:`,
+    '',
+    ...lines.map(({ d, q }) => `${q} × ${d.name} (${rupees(d.price * q)})`),
+    '',
+    `*Total: ${rupees(total)}*`,
+    '',
+    `*Name:* ${name}`,
+    `*Phone:* ${digits.replace(/(\d{5})(\d{5})/, '$1 $2')}`,
+    `*Deliver to:* ${address.replace(/\s*\n\s*/g, ', ')}`,
+    ...(note ? [`*Notes:* ${note}`] : []),
+    `*Payment:* ${pay === 'upi' ? 'UPI (paying now, screenshot to follow)' : 'On delivery'}`,
+    `Order ref: ${ref}`,
+  ].join('\n');
+  const url = `https://wa.me/${waPhone()}?text=${encodeURIComponent(text)}`;
+  if (!window.open(url, '_blank')) location.href = url;
+  cart.clear();
+  saveCart();
+  state.orderNote = '';
+  state.orderRef = null;
+  $$('[data-add]').forEach((ctl) => { ctl.outerHTML = addControl(byId(ctl.dataset.add), ctl.classList.contains('big')); });
+  syncCartBar();
+  openSheet(`
+    <div class="sheet-body order-status wa-sent">
+      <p class="eyebrow">Order ${esc(ref)} · ${esc(rupees(total))}</p>
+      <h2 id="sheet-title">Finish in WhatsApp</h2>
+      <p class="muted">Your order is ready in WhatsApp. Tap <b>Send</b> there, and ${esc(data.name)} will confirm it in the chat.</p>
+      <a class="btn place wa-send" href="${esc(url)}" target="_blank" rel="noopener">${icons.whatsapp}Open WhatsApp again</a>
+      ${pay === 'upi' ? payHtml(total, true) : ''}
+      <button type="button" class="btn ghost" data-reorder>Back to the menu</button>
+    </div>`, { kind: 'wa-sent', replace: true });
+  fillPayQr();
 }
 
 async function placeOrder() {

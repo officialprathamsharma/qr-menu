@@ -41,6 +41,8 @@ const linkError = authLink.get('error_description');
 // the owner submits a new password, so email link scanners that open the page can't use it up.
 const tokenHash = params.get('token_hash');
 const tokenType = params.get('type') === 'recovery' ? 'recovery' : 'invite';
+// The 7-day welcome link from the onboarding email: ?welcome=<token> (see supabase/functions/welcome-link).
+let welcomeToken = params.get('welcome'); // read once: after it's used, boot() must not open it again
 let dirty = false;
 let view = supabaseEnabled() ? 'orders' : 'items';
 let itemSearch = '';
@@ -148,6 +150,7 @@ async function savePhotoSet(d, full, thumb) {
 async function boot() {
   if (MODE === 'live') {
     const sb = await getSupabase();
+    if (welcomeToken) return renderWelcome(welcomeToken);
     if (tokenHash) return renderSetPassword(tokenType, '', tokenHash);
     const { data: { session } } = await sb.auth.getSession();
     if (!session) return renderLogin(linkError ? `That link didn't work: ${linkError}. Ask for a new one below.` : '');
@@ -217,17 +220,42 @@ function fatal(msg, withSignOut = false) {
   $('#signout')?.addEventListener('click', signOut);
 }
 
-function renderSetPassword(type, email, hash = '') {
+/* Welcome link: swap the 7-day token for a fresh one-time token, then ask for a password. */
+async function renderWelcome(token) {
+  welcomeToken = null;
+  history.replaceState(null, '', location.pathname);
+  root.innerHTML = '<div class="login"><div style="max-width:420px"><h1>Welcome to NomNom</h1><p>Opening your dashboard invite…</p></div></div>';
+  const sb = await getSupabase();
+  const { data, error } = await sb.functions.invoke('welcome-link', { body: { token } });
+  let res = data;
+  if (error?.context?.json) { try { res = await error.context.json(); } catch { /* keep */ } }
+  if (!res?.token_hash) {
+    const why = res?.error;
+    const msg = why === 'used'
+      ? 'You have already set your password with this link. Sign in below with your email and password.'
+      : why === 'expired'
+        ? `This invite link expired on ${res.expires}. Use "Email me a reset link" below, or ask NomNom to send a new invite.`
+        : 'This invite link is not valid. Use "Email me a reset link" below, or ask NomNom to send a new invite.';
+    renderLogin(msg, res?.email || '');
+    return;
+  }
+  // Someone else signed in on this browser (e.g. NomNom staff testing)? The owner's password goes on their own login.
+  await sb.auth.signOut({ scope: 'local' }).catch(() => {});
+  renderSetPassword(res.type, res.email, res.token_hash, { welcomeToken: token, restaurant: res.restaurant, expires: res.expires });
+}
+
+function renderSetPassword(type, email, hash = '', welcome = null) {
   history.replaceState(null, '', location.pathname);
   root.innerHTML = `
     <div class="login">
       <form id="setpw" novalidate>
-        <h1>${type === 'invite' ? 'Welcome' : 'Reset password'}</h1>
-        <p>Choose a password${email ? ` for <b>${esc(email)}</b>` : ''}. You'll use it with your email to sign in to your dashboard.</p>
+        <h1>${welcome ? `Welcome${welcome.restaurant ? `, ${esc(welcome.restaurant)}` : ''}` : type === 'invite' ? 'Welcome' : 'Reset password'}</h1>
+        <p>Choose a password${email ? ` for <b>${esc(email)}</b>` : ''}. You'll use it with your email to sign in to your dashboard${welcome ? ' at <b>menu.heynomnom.in/admin</b>' : ''}.</p>
+        ${email ? `<input type="email" name="username" value="${esc(email)}" autocomplete="username" hidden>` : ''}
         <label class="field">New password<input type="password" name="password" autocomplete="new-password" minlength="8" required></label>
         <label class="field">Confirm password<input type="password" name="confirm" autocomplete="new-password" minlength="8" required></label>
         <p class="error" id="setpw-err" role="alert"></p>
-        <button class="btn" type="submit">Save password</button>
+        <button class="btn" type="submit">${welcome ? 'Save password and open my dashboard' : 'Save password'}</button>
       </form>
     </div>`;
   const form = $('#setpw');
@@ -237,28 +265,35 @@ function renderSetPassword(type, email, hash = '') {
     const pw = form.password.value;
     if (pw.length < 8) { err.textContent = 'Use at least 8 characters.'; return; }
     if (pw !== form.confirm.value) { err.textContent = "The passwords don't match."; return; }
+    const btn = form.querySelector('button[type=submit]');
+    btn.disabled = true; btn.textContent = 'Saving…'; err.textContent = '';
+    const fail = (m) => { err.textContent = m; btn.disabled = false; btn.textContent = welcome ? 'Save password and open my dashboard' : 'Save password'; };
     const sb = await getSupabase();
     if (hash) {
       const { error: vErr } = await sb.auth.verifyOtp({ token_hash: hash, type });
       if (vErr) {
-        err.textContent = `This link has expired or was already used. Ask NomNom for a new welcome email, or use "Email me a reset link" on the sign-in page. (${vErr.message})`;
+        if (welcome) { fail('That took too long. Please open the link from your email again.'); return; }
+        fail(`This link has expired or was already used. Use "Email me a reset link" on the sign-in page, or ask NomNom for a new welcome email. (${vErr.message})`);
         return;
       }
     }
     const { error } = await sb.auth.updateUser({ password: pw });
-    if (error) { err.textContent = error.message; return; }
+    if (error) { fail(error.message); return; }
+    if (welcome) sb.functions.invoke('welcome-link', { body: { token: welcome.welcomeToken, done: true } }).catch(() => {});
+    // Signed in already: open the dashboard straight away.
     root.innerHTML = '<div class="boot"><span></span></div>';
-    location.reload();
+    toast('Password saved. Welcome to your dashboard!');
+    boot();
   });
 }
 
-function renderLogin(notice = '') {
+function renderLogin(notice = '', email = '') {
   root.innerHTML = `
     <div class="login">
       <form id="login" novalidate>
         <h1>Menu dashboard</h1>
         <p>Sign in to manage your menu, photos and videos.</p>
-        <label class="field">Email<input type="email" name="email" autocomplete="username" required></label>
+        <label class="field">Email<input type="email" name="email" autocomplete="username" required value="${esc(email)}"></label>
         <label class="field">Password<input type="password" name="password" autocomplete="current-password" required></label>
         <p class="error" id="login-err" role="alert">${esc(notice)}</p>
         <button class="btn" type="submit">Sign in</button>
@@ -268,9 +303,16 @@ function renderLogin(notice = '') {
   const form = $('#login');
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
+    const btn = form.querySelector('button[type=submit]'); btn.disabled = true; btn.textContent = 'Signing in…';
     const sb = await getSupabase();
     const { error } = await sb.auth.signInWithPassword({ email: form.email.value.trim(), password: form.password.value });
-    if (error) { $('#login-err').textContent = error.message; return; }
+    if (error) {
+      btn.disabled = false; btn.textContent = 'Sign in';
+      $('#login-err').textContent = /invalid login/i.test(error.message)
+        ? 'Wrong email or password. New to NomNom? Use the link in your welcome email to set a password first.'
+        : /not confirmed/i.test(error.message) ? 'Please set your password using the link in your welcome email first.' : error.message;
+      return;
+    }
     root.innerHTML = '<div class="boot"><span></span></div>';
     boot();
   });
@@ -278,8 +320,12 @@ function renderLogin(notice = '') {
     const email = form.email.value.trim();
     if (!email) { $('#login-err').textContent = 'Enter your email first.'; return; }
     const sb = await getSupabase();
-    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.href });
-    $('#login-err').textContent = error ? error.message : 'Check your inbox for a reset link.';
+    const btn = $('#forgot'); btn.disabled = true;
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+    btn.disabled = false;
+    $('#login-err').textContent = error
+      ? (/rate|seconds/i.test(error.message) ? 'A reset email was sent a moment ago. Please check your inbox (and spam), or try again in a minute.' : error.message)
+      : `Check ${email} for a reset link (it works for 24 hours). Also check spam.`;
   };
 }
 
@@ -476,6 +522,9 @@ async function publish() {
     let previous = null;
     if (MODE === 'live') {
       previous = (await (await getSupabase()).from('menus').select('data').eq('slug', slug).maybeSingle()).data?.data || null;
+      // WhatsApp Ordering is switched on/off from Partners only: keep whatever it is now.
+      const waOn = Boolean(previous?.whatsappOrdering?.enabled);
+      if (waOn || menu.whatsappOrdering) menu.whatsappOrdering = { ...(menu.whatsappOrdering || {}), enabled: waOn };
       await saveSupabase(slug, menu);
     } else await saveLocal(slug, menu);
     setDirty(false);

@@ -29,7 +29,8 @@ Videos use the most bandwidth. Ask owners for 720p clips under about 15 MB.
 ## Onboarding a restaurant (super admin)
 
 One-time: run [`admin.sql`](admin.sql) (makes the login that owns the `demo` menu a super admin) and deploy
-[`functions/invite-owner`](functions/invite-owner/index.ts) as an Edge Function.
+[`functions/invite-owner`](functions/invite-owner/index.ts) and [`functions/welcome-link`](functions/welcome-link/index.ts)
+as Edge Functions, and run [`welcome-links.sql`](welcome-links.sql).
 
 1. Sign in at `https://menu.heynomnom.in/admin/`. Super admins land on **Partners**: every restaurant with its status,
    dish/video/photo counts, owner contact and last sign-in, menu link and main QR code (PNG poster or SVG).
@@ -37,8 +38,15 @@ One-time: run [`admin.sql`](admin.sql) (makes the login that owns the `demo` men
 3. Build the menu: **Import a menu** (Excel, CSV or a Zomato link), **Start from sample** (`data/<slug>.json` if it
    exists, otherwise `data/demo.json`) or **Blank menu**, then **Save & publish** (you're asked to confirm).
 4. After the first publish the dashboard offers to send the owner's **welcome email** (also on each partner card).
-   It's sent from info@heynomnom.in and links to `/admin/?token_hash=…`; the one-time token is only used when the
-   owner submits their new password, so email link scanners can't use it up.
+   It's sent from info@heynomnom.in and links to `/admin/?welcome=…`, a NomNom link that works for **7 days** (the
+   email says until when). Opening it swaps it for a fresh one-time Supabase token, so it never goes stale; the token
+   is only used when the owner submits their new password, so email link scanners can't use it up. The owner chooses
+   a password and lands straight in their dashboard; afterwards the link says "already set, sign in below".
+   Re-sending replaces the old link. After sending, the dialog shows the link with **Copy** and **Send on WhatsApp**.
+   Supabase allows one email per address per minute; a quicker re-send still makes a new link, just without an email.
+   - Email templates (Authentication → Emails): **Invite user** (new logins) and **Magic link** (existing logins)
+     use `{{ .Data.welcome_url }}` and `{{ .Data.welcome_expires }}`. **Reset password** links to
+     `/admin/?token_hash=…&type=recovery` and lasts 24 hours (Email OTP expiration = 86400 s, Supabase's maximum).
 5. Main QR: `https://menu.heynomnom.in/?r=<slug>`. Table QR cards: open the menu → **Tables & QR**
    (`?r=<slug>&t=<table number>`).
 
@@ -54,6 +62,16 @@ and its menu link, QR codes and ordering are off, as with a pause. From there, *
 orders. The owner's login is kept. Needs [`archive.sql`](archive.sql) (run once, after pause-and-cleanup.sql).
 
 Paused and archived menus stay off even in a browser where you're signed in to the dashboard.
+
+**WhatsApp Ordering** (switch on each partner card, e.g. for cloud kitchens): guests add dishes to a cart, enter
+their name, phone and delivery address, and **Send order on WhatsApp** opens WhatsApp addressed to the restaurant with
+the order, total, their details and an order ref. At checkout they can choose **Pay now by UPI** (a QR with the amount
+filled in from the restaurant's UPI ID, a "Pay in a UPI app" button, or the restaurant's own uploaded QR image) or
+**Pay on delivery**. Turning it on uses the owner's phone from Details as the WhatsApp number; the owner (or you) can
+change it, add a UPI ID, a payment QR image and a note for guests in the menu's **Orders** tab, then Save & publish.
+A table QR (`&t=`) at a restaurant that also has table ordering keeps table ordering. Only super admins can turn it
+on or off: [`whatsapp-ordering.sql`](whatsapp-ordering.sql) (run once) keeps the switch as it was when an owner
+publishes. Stored in `menus.data.whatsappOrdering` `{ enabled, phone, upi, qr, note }`.
 
 Editing a partner's menu always asks first, shows a banner while you edit, and asks again before publishing or
 switching table ordering. Owners still only see their own restaurant.
