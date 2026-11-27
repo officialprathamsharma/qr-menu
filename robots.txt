@@ -1,0 +1,6 @@
+# menu.heynomnom.in: restaurant menus may be indexed; the dashboard and project files may not.
+User-agent: *
+Disallow: /admin/
+Disallow: /supabase/
+Disallow: /tools/
+Disallow: /*.md$
