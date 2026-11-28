@@ -555,3 +555,18 @@ body.has-cart .foot { padding-bottom: calc(112px + var(--safe-bottom)); }
 .land-form small a, .land-links a { color: var(--accent-ink); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
 .land-err { color: var(--danger) !important; font-size: var(--fs-sm); margin: 0 !important; }
 .land-links { margin: 22px 0 32px !important; font-size: var(--fs-sm); }
+
+/* Opening notice */
+.notice-overlay { position: fixed; inset: 0; z-index: 80; display: grid; place-items: center; padding: 24px; background: rgba(20, 14, 10, 0); transition: background .3s; }
+.notice-overlay.in { background: rgba(20, 14, 10, .45); }
+.notice-card { width: min(380px, 100%); padding: 26px 22px 20px; border-radius: 26px; background: var(--bg); color: var(--text); text-align: center; box-shadow: 0 30px 80px rgba(0, 0, 0, .35); transform: translateY(24px) scale(.96); opacity: 0; transition: transform .45s var(--ease-out), opacity .3s; }
+.notice-overlay.in .notice-card { transform: none; opacity: 1; }
+.notice-icon { width: 58px; height: 58px; margin: 0 auto 12px; border-radius: 18px; display: grid; place-items: center; font-size: 28px; background: var(--primary-soft); }
+.notice-card h2 { font: 700 24px/1.15 var(--display); letter-spacing: -.02em; }
+.notice-msg { margin-top: 10px; color: var(--muted); font-size: 15.5px; line-height: 1.5; white-space: pre-line; }
+.notice-times { margin: 16px 0 0; padding: 12px 14px; border-radius: 16px; background: var(--surface-2); text-align: left; }
+.notice-times .eyebrow { margin-bottom: 4px; }
+.notice-times p:not(.eyebrow) { font-size: 15px; line-height: 1.5; }
+.notice-paused { margin-top: 14px; font-size: 13.5px; color: var(--muted); }
+.notice-ok { width: 100%; height: 52px; margin-top: 18px; border-radius: var(--radius); background: var(--primary); color: var(--on-primary); font-size: 16px; }
+@media (prefers-reduced-motion: reduce) { .notice-card { transition: none; } }

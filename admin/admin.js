@@ -489,6 +489,25 @@ async function setOrdering(on) {
   }
 }
 
+/* Publish one part of the menu right away (e.g. the opening notice), leaving other unpublished edits as drafts. */
+async function publishPart(key, value) {
+  if (adminEditing && !(await confirmDialog({
+    title: `Update ${menu.name}'s opening notice?`,
+    body: `Guests at <b>${esc(menu.name)}</b> see the change as soon as they open the menu.`,
+    confirm: 'Update now',
+  }))) return false;
+  if (MODE === 'live') {
+    const sb = await getSupabase();
+    const { data: row, error } = await sb.from('menus').select('data').eq('slug', slug).single();
+    if (error) throw error;
+    const published = row?.data && Object.keys(row.data).length ? row.data : structuredClone(menu);
+    published[key] = structuredClone(value);
+    await saveSupabase(slug, published);
+  } else setDirty(true);
+  menu[key] = structuredClone(value);
+  return true;
+}
+
 // Live orders keep running on every tab, so new orders ring and notify wherever the owner is.
 let opsStarted = false;
 async function initOps() {
@@ -501,6 +520,7 @@ async function initOps() {
     toast,
     setDirty,
     setOrdering: (on) => { const t = $('#ordering-toggle'); t.checked = on; return setOrdering(on); },
+    publishPart,
     onOrdersChange: () => { if (view === 'orders' && !$('.drawer')) renderOrders($('#view')); },
   };
   if (!opsStarted) { opsStarted = true; await startOrders(ctx); }

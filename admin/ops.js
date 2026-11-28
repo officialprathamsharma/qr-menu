@@ -146,6 +146,67 @@ async function setPunched(id, punched) {
   changed();
 }
 
+/* ---------- Opening notice: a message guests see when they open the menu (timings, busy, closed) ----------
+   The switch and "Update notice" go live straight away; nothing else in the menu is published. */
+const NOTICE_TYPES = [['info', 'Message / timings'], ['busy', 'We’re busy'], ['closed', 'Closed / offline']];
+const NOTICE_HINT = {
+  info: ['A note from us', 'New winter menu is here!'],
+  busy: ['We’re very busy right now', 'Orders may take 30–40 minutes.'],
+  closed: ['We’re closed right now', 'We open again tomorrow at 9 am.'],
+};
+let noticeDraft = null;
+function noticePanel(m) {
+  noticeDraft ||= structuredClone(m.notice || { enabled: false, kind: 'info', title: '', message: '', timings: '', pauseOrders: false });
+  const n = noticeDraft;
+  const on = Boolean(m.notice?.enabled);
+  const [hTitle, hMsg] = NOTICE_HINT[n.kind] || NOTICE_HINT.info;
+  return `
+    <section class="panel notice-panel${on ? ' is-on' : ''}">
+      <div class="np-head">
+        <div><h3>Opening notice ${on ? '<span class="pill live">Showing</span>' : ''}</h3>
+          <p class="hint">A pop-up guests see when they open your menu: your timings, “we’re busy”, or “closed right now”.</p></div>
+        <label class="order-switch"><input type="checkbox" id="np-on" role="switch" ${on ? 'checked' : ''}><span class="os-track" aria-hidden="true"></span><span class="os-label">Notice <b>${on ? 'On' : 'Off'}</b></span></label>
+      </div>
+      <div class="np-kinds" role="radiogroup" aria-label="Notice type">
+        ${NOTICE_TYPES.map(([k, l]) => `<label class="np-kind"><input type="radio" name="np-kind" value="${k}" ${n.kind === k ? 'checked' : ''}><span>${l}</span></label>`).join('')}
+      </div>
+      <div class="row2">
+        <label class="field">Heading <small>optional</small><input class="input" id="np-title" maxlength="60" value="${esc(n.title || '')}" placeholder="${esc(hTitle)}"></label>
+        <label class="field">Message <small>optional</small><input class="input" id="np-msg" maxlength="200" value="${esc(n.message || '')}" placeholder="${esc(hMsg)}"></label>
+      </div>
+      <label class="field">Timings <small>optional, one line each</small><textarea class="input" id="np-times" rows="2" maxlength="300" placeholder="Mon–Fri · 9 am – 11 pm&#10;Sat–Sun · 10 am – 12 am">${esc(n.timings || '')}</textarea></label>
+      <label class="switch-row"><input type="checkbox" id="np-pause" ${n.pauseOrders ? 'checked' : ''}><span><b>Pause ordering while it’s on</b> <small>hides Add buttons; guests can still browse</small></span></label>
+      <div class="np-foot"><button class="btn sm" id="np-save">${on ? 'Update notice' : 'Save and turn on'}</button><span class="hint" id="np-state"></span></div>
+    </section>`;
+}
+function wireNoticePanel(el, m) {
+  const n = noticeDraft;
+  const state = el.querySelector('#np-state');
+  const dirty = () => { state.textContent = m.notice?.enabled ? 'Not live yet: press Update notice.' : ''; };
+  const bind = (id, key, prop) => el.querySelector(id).addEventListener('input', (e) => { n[key] = prop ? e.target.checked : e.target.value; dirty(); });
+  bind('#np-title', 'title'); bind('#np-msg', 'message'); bind('#np-times', 'timings'); bind('#np-pause', 'pauseOrders', true);
+  el.querySelectorAll('input[name=np-kind]').forEach((r) => r.addEventListener('change', () => {
+    n.kind = r.value;
+    if (r.value === 'closed') n.pauseOrders = true;
+    renderOrders(el);
+    dirty();
+  }));
+  const publish = async (enabled) => {
+    el.querySelector('#np-save').disabled = true;
+    el.querySelector('#np-on').disabled = true;
+    try {
+      const next = { ...n, enabled, title: (n.title || '').trim(), message: (n.message || '').trim(), timings: (n.timings || '').trim() };
+      if (await ctx.publishPart('notice', next)) {
+        Object.assign(n, next);
+        ctx.toast(enabled ? 'Notice is live. Guests see it when they open the menu.' : 'Notice is off.');
+      }
+    } catch (x) { ctx.toast(`Couldn't update the notice: ${x.message || x}`, true); }
+    renderOrders(el);
+  };
+  el.querySelector('#np-on').onchange = (e) => publish(e.target.checked);
+  el.querySelector('#np-save').onclick = () => publish(true);
+}
+
 /* ---------- WhatsApp Ordering settings (NomNom turns it on in Partners; the owner fills these in) ---------- */
 const UPI_RE = /^[\w.\-]{2,}@[a-zA-Z][\w.\-]*$/;
 function waPanel(m) {
@@ -225,6 +286,7 @@ export function renderOrders(el) {
       ${'wakeLock' in navigator ? `<button class="btn ghost sm" id="ord-awake">${pref.get('awake') === 'on' ? 'Screen stays on' : 'Keep screen on'}</button>` : ''}
       <button class="btn ghost sm" id="ord-export">Export today (CSV)</button>
     </div>
+    ${noticePanel(m)}
     ${m.whatsappOrdering?.enabled ? waPanel(m) : ''}
     ${unpunched ? `<p class="banner punch-note"><strong>${unpunched} order${unpunched === 1 ? '' : 's'} not yet entered in your POS.</strong> Tick "Entered in POS" after punching each one in Petpooja.</p>` : ''}
     <div class="board">
@@ -239,6 +301,7 @@ export function renderOrders(el) {
 
   $('#ord-enabled', el).onchange = (e) => ctx.setOrdering(e.target.checked);
   if (m.whatsappOrdering?.enabled) wireWaPanel(el, m);
+  wireNoticePanel(el, m);
   $('#ord-sound', el).onclick = () => {
     pref.set('sound', pref.get('sound') === 'off' ? 'on' : 'off');
     unlockAudio();

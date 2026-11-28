@@ -174,8 +174,56 @@ async function init() {
   } catch { /* keep default */ }
 
   if (isDesktop() && !params.has('preview')) renderGate();
-  else renderMenu();
+  else { renderMenu(); scheduleNotice(); }
   hideSplash();
+}
+
+/* ---------- Opening notice (owner switches it on: timings, "busy", "closed") ----------
+   Shown once per visit, after the splash. "Pause ordering" hides Add buttons while it's on. */
+const NOTICE_KINDS = {
+  info: { icon: '📣', title: 'A note from us' },
+  busy: { icon: '⏳', title: 'We’re very busy right now' },
+  closed: { icon: '🌙', title: 'We’re closed right now' },
+};
+const noticeOn = () => Boolean(data?.notice?.enabled && (data.notice.title || data.notice.message || data.notice.timings || data.notice.kind !== 'info'));
+const ordersPaused = () => noticeOn() && Boolean(data.notice.pauseOrders);
+function scheduleNotice() {
+  if (!noticeOn()) return;
+  const n = data.notice;
+  const sig = JSON.stringify([n.kind, n.title, n.message, n.timings, n.pauseOrders]);
+  try { if (sessionStorage.getItem(`notice:${slug}`) === sig) return; sessionStorage.setItem(`notice:${slug}`, sig); } catch { /* show anyway */ }
+  setTimeout(openNotice, Math.max(300, SPLASH_MIN + (prefersReduced ? 300 : 1100) - performance.now()));
+}
+function openNotice() {
+  if (!noticeOn() || $('.notice-overlay')) return;
+  const n = data.notice;
+  const k = NOTICE_KINDS[n.kind] || NOTICE_KINDS.info;
+  const lines = String(n.timings || '').split('\n').map((l) => l.trim()).filter(Boolean);
+  const wrap = document.createElement('div');
+  wrap.className = `notice-overlay kind-${esc(n.kind || 'info')}`;
+  wrap.innerHTML = `
+    <div class="notice-card" role="dialog" aria-modal="true" aria-labelledby="notice-title">
+      <div class="notice-icon" aria-hidden="true">${k.icon}</div>
+      <h2 id="notice-title">${esc(n.title || k.title)}</h2>
+      ${n.message ? `<p class="notice-msg">${esc(n.message)}</p>` : ''}
+      ${lines.length ? `<div class="notice-times"><p class="eyebrow">Timings</p>${lines.map((l) => `<p>${esc(l)}</p>`).join('')}</div>` : ''}
+      ${n.pauseOrders ? '<p class="notice-paused">Ordering from the menu is paused for now. You can still browse everything.</p>' : ''}
+      <button type="button" class="btn notice-ok">${n.kind === 'closed' ? 'Browse the menu' : 'View the menu'}</button>
+    </div>`;
+  document.body.append(wrap);
+  document.documentElement.classList.add('lock');
+  requestAnimationFrame(() => wrap.classList.add('in'));
+  const close = () => {
+    wrap.classList.remove('in');
+    document.documentElement.classList.remove('lock');
+    removeEventListener('keydown', onKey);
+    setTimeout(() => wrap.remove(), 300);
+    setTimeout(pickActive, 60);
+  };
+  const onKey = (e) => { if (e.key === 'Escape') close(); };
+  addEventListener('keydown', onKey);
+  wrap.addEventListener('click', (e) => { if (e.target === wrap || e.target.closest('.notice-ok')) close(); });
+  $('.notice-ok', wrap).focus({ preventScroll: true });
 }
 
 function normalize() {
@@ -400,7 +448,7 @@ function renderMenu() {
   });
   $('#open-filters').onclick = openFilters;
   $('#menu-fab').onclick = openCategories;
-  $('#open-cart').onclick = () => (cartCount() ? openCart() : openOrderStatus());
+  $('#open-cart').onclick = () => (ordersPaused() ? openNotice() : cartCount() ? openCart() : openOrderStatus());
   $('#wifi-chip')?.addEventListener('click', openWifi);
   loadCart();
   syncCartBar();
@@ -1374,7 +1422,7 @@ const waPhone = () => String(waCfg().phone || '').replace(/\D/g, '').replace(/^0
 const canWaOrder = () => Boolean(waCfg().enabled) && waPhone().length >= 11;
 // A table QR (?t=) at a restaurant with table ordering keeps table ordering; everyone else orders on WhatsApp.
 const orderMode = () => (canTableOrder() && (tableNo || !canWaOrder()) ? 'table' : canWaOrder() ? 'wa' : '');
-const canOrder = () => Boolean(orderMode());
+const canOrder = () => Boolean(orderMode()) && !ordersPaused();
 const cartKey = `cart:${slug}`;
 const lastKey = `order:${slug}`;
 const cartCount = () => [...cart.values()].reduce((a, b) => a + b, 0);
@@ -1433,6 +1481,13 @@ function syncCartBar() {
   const n = cartCount();
   const last = lastOrder();
   const showStatus = !n && last && !['served', 'cancelled'].includes(last.status);
+  // Ordering paused by the opening notice: a quiet bar that reopens it.
+  if (ordersPaused() && orderMode()) {
+    bar.hidden = false;
+    document.body.classList.add('has-cart');
+    $('#open-cart').innerHTML = `<span class="cb-label">${esc(NOTICE_KINDS[data.notice.kind]?.icon || '')} Not taking orders right now</span><span class="cb-go">Details ${icons.arrow}</span>`;
+    return;
+  }
   bar.hidden = !(canOrder() && (n || showStatus));
   document.body.classList.toggle('has-cart', !bar.hidden);
   if (bar.hidden) return;
